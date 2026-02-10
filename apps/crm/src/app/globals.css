@@ -1,0 +1,375 @@
+:root {
+  /* Референс: primary #137fec, background-light #f6f7f8, border #e7edf3, text-secondary #4c739a, whatsapp #25D366 */
+  --bg: #f6f7f8;
+  --surface: #ffffff;
+  --border: #e7edf3;
+  --text: #0d141b;
+  --text-muted: #4c739a;
+  --accent: #137fec;
+  --accent-hover: #1066bd;
+  --accent-light: #e7f2fd;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --success: #25D366;
+  --success-bg: #f0fdf4;
+  --warning: #ea580c;
+  --warning-bg: #fff7ed;
+  --sidebar-bg: #f1f5f9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-card: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  /* Теги как в референсе: B2B blue, Demo purple, Cold gray, High Priority red */
+  --tag-b2b-bg: #dbeafe;
+  --tag-b2b-text: #1d4ed8;
+  --tag-demo-bg: #f3e8ff;
+  --tag-demo-text: #7c3aed;
+  --tag-cold-bg: #f1f5f9;
+  --tag-cold-text: #475569;
+  --tag-high-bg: #fee2e2;
+  --tag-high-text: #b91c1c;
+  --whatsapp: #25D366;
+  /* PWA / mobile */
+  --touch-min: 44px;
+  --bottom-nav-h: 56px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-manrope, 'Manrope'), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+input, select, textarea {
+  font: inherit;
+}
+
+/* Touch-friendly: не ломаем layout, но увеличиваем кликабельные зоны где важно */
+@media (pointer: coarse) {
+  input, select, textarea {
+    min-height: 48px;
+    font-size: 16px; /* avoids zoom on focus on iOS */
+  }
+}
+
+/* Responsive page padding: mobile-first, больше воздуха на мобилке */
+.page-content {
+  padding: 1rem;
+  padding-bottom: calc(1.25rem + var(--bottom-nav-h) + var(--safe-bottom));
+  max-width: 100%;
+}
+@media (max-width: 768px) {
+  .page-content {
+    padding: 1rem 1rem 1.25rem;
+    padding-left: max(1rem, var(--safe-left));
+    padding-right: max(1rem, var(--safe-right));
+  }
+  body { font-size: 16px; }
+}
+@media (min-width: 769px) {
+  .page-content {
+    padding: 1.75rem 2.5rem;
+    padding-bottom: 1.75rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* CRM root: на мобилке колонка (шапка — контент — низ. нав) */
+@media (max-width: 768px) {
+  .crm-root {
+    flex-direction: column;
+  }
+  .crm-main {
+    flex: 1;
+  }
+}
+
+/* CRM layout: sidebar visible only on desktop */
+.crm-sidebar {
+  display: none;
+}
+@media (min-width: 769px) {
+  .crm-sidebar {
+    display: flex;
+  }
+}
+
+/* Mobile top bar: logo + space, only on small screens */
+.crm-mobile-header {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  padding-top: calc(0.75rem + var(--safe-top));
+  align-items: center;
+  gap: 0.75rem;
+}
+@media (max-width: 768px) {
+  .crm-mobile-header {
+    display: flex;
+  }
+}
+
+@media (min-width: 769px) {
+  .crm-mobile-header {
+    display: none !important;
+  }
+}
+
+/* Bottom nav: visible only on mobile */
+.crm-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--bottom-nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 50;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+@media (max-width: 768px) {
+  .crm-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+  .crm-bottom-nav a {
+    flex: 1;
+    max-width: 120px;
+    padding: 0.5rem 0.25rem;
+    border-radius: 12px;
+    min-height: 52px;
+    justify-content: center;
+  }
+}
+
+.crm-main {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .crm-main {
+    padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + 0.5rem);
+  }
+}
+
+/* Kanban: smooth horizontal scroll on mobile */
+@media (max-width: 768px) {
+  .kanban-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.5rem;
+  }
+  .kanban-scroll > * {
+    scroll-snap-align: start;
+    min-width: 280px;
+  }
+}
+
+/* Kanban columns & cards — более живой UI */
+.kanban-column {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+.kanban-column:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.kanban-card {
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out, background-color 0.12s ease-out;
+}
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+  border-color: rgba(19, 127, 236, 0.2);
+}
+.kanban-card-dragging {
+  opacity: 0.6;
+  cursor: grabbing;
+}
+.kanban-column-drop-zone {
+  min-height: 60px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.kanban-column-drop-zone.drag-over {
+  background: var(--accent-light);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Скроллбар канбана как в референсе */
+.leads-kanban-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1.5rem 0;
+}
+.leads-kanban-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.leads-kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.leads-kanban-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+}
+
+/* Теги на карточках лидов: B2B, Demo, Cold, High Priority */
+.tag-b2b {
+  background: var(--tag-b2b-bg);
+  color: var(--tag-b2b-text);
+}
+.tag-demo {
+  background: var(--tag-demo-bg);
+  color: var(--tag-demo-text);
+}
+.tag-cold {
+  background: var(--tag-cold-bg);
+  color: var(--tag-cold-text);
+}
+.tag-high-priority {
+  background: var(--tag-high-bg);
+  color: var(--tag-high-text);
+}
+
+/* Кнопка «+ Добавить» в колонке канбана */
+a.leads-add-btn:hover {
+  background: var(--sidebar-bg) !important;
+  color: var(--accent) !important;
+  text-decoration: none;
+}
+
+/* Lead detail: stack columns on mobile */
+.lead-detail-root {
+  display: flex;
+  min-height: 100%;
+  background: var(--bg);
+}
+.lead-detail-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.25rem;
+}
+.lead-detail-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lead-detail-timeline {
+  display: flex;
+}
+@media (max-width: 1024px) {
+  .lead-detail-timeline {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  .lead-detail-chat {
+    /* На мобилке чат занимает весь экран под шапкой лида */
+    max-height: calc(100dvh - 220px);
+  }
+}
+@media (max-width: 768px) {
+  .lead-detail-root {
+    flex-direction: column;
+  }
+  .lead-detail-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Пустые состояния — как в мобильном приложении */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  min-height: 120px;
+}
+.empty-state-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.6;
+}
+.empty-state-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.empty-state-sub {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Карточки секций на мобилке — крупнее и с отступами */
+@media (max-width: 768px) {
+  .priority-section { margin-bottom: 1.5rem; }
+  .priority-section-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.75rem;
+    color: var(--text-muted);
+  }
+  .priority-card {
+    padding: 1.25rem 1rem;
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+    min-height: 56px;
+  }
+}

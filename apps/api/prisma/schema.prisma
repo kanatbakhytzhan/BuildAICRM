@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("active") // active, pause, error
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users              User[]
+  pipelineStages     PipelineStage[]
+  leads              Lead[]
+  settings           TenantSettings?
+  followUpTemplates  FollowUpTemplate[]
+}
+
+model GlobalAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TenantSettings {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  aiEnabled         Boolean  @default(true)
+  chatflowInstanceId String?
+  chatflowApiToken  String?
+  webhookUrl        String?
+  systemPrompt     String?   @db.Text
+  respondFirst     Boolean  @default(true)
+  suggestCall      Boolean  @default(true)
+  askQuestions     Boolean  @default(true)
+  nightModeEnabled Boolean  @default(false)
+  nightModeStart   String?  // "22:00"
+  nightModeEnd     String?  // "08:00"
+  nightModeMessage String?  @db.Text
+  followUpEnabled  Boolean  @default(true)
+  followUpDelay    String?  // "15" (minutes) or "1" (hour)
+  followUpMessage  String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model FollowUpTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  messageText String   @db.Text
+  delayLabel  String   // "+5 мин", "+24 часа", "+7 дней"
+  delayMinutes Int     // for sorting/scheduling
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+enum UserRole {
+  owner
+  rop
+  manager
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String
+  passwordHash String
+  name      String?
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedLeads Lead[] @relation("AssignedLeads")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model PipelineStage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  order     Int
+  type      String   // new, in_progress, wants_call, full_data, success, refused
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  Lead[]
+
+  @@index([tenantId])
+}
+
+enum LeadScore {
+  hot
+  warm
+  cold
+}
+
+model Lead {
+  id             String    @id @default(cuid())
+  tenantId       String
+  stageId        String
+  assignedUserId String?
+  leadScore      LeadScore @default(cold)
+  aiActive       Boolean   @default(true)
+  phone          String
+  name           String?
+  metadata       Json?     // city, dimensions, etc.
+  lastMessageAt  DateTime?
+  lastMessagePreview String?
+  noResponseSince DateTime?
+  aiNotes        String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stage    PipelineStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  assignedUser User?     @relation("AssignedLeads", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([tenantId])
+  @@index([stageId])
+  @@index([assignedUserId])
+  @@index([tenantId, lastMessageAt])
+}
+
+enum MessageSource {
+  ai
+  human
+}
+
+enum MessageDirection {
+  in
+  out
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  leadId    String
+  source    MessageSource
+  direction MessageDirection
+  body      String?
+  mediaUrl  String?
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+enum SystemLogCategory {
+  whatsapp
+  ai
+  system
+}
+
+model SystemLog {
+  id        String            @id @default(cuid())
+  tenantId  String?
+  category  SystemLogCategory
+  message   String            @db.Text
+  meta      Json?
+  createdAt DateTime          @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([category, createdAt])
+}
+
+model SystemSettings {
+  id              String   @id @default("singleton")
+  defaultTimezone String   @default("Europe/Moscow")
+  maintenanceMode Boolean  @default(false)
+  aiGlobalEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

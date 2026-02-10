@@ -1,0 +1,59 @@
+# BuildCRM — полный деплой на Render (Postgres + API + CRM + Admin)
+# Подключите репозиторий к Render → New Blueprint Instance → выберите этот репо.
+# Render создаст БД и 3 веб-сервиса и выдаст ссылки.
+
+databases:
+  - name: buildcrm-db
+    databaseName: buildcrm
+    plan: free
+    region: oregon
+
+services:
+  # API (NestJS + Prisma)
+  - type: web
+    name: buildcrm-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: buildcrm-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: "4000"
+      - key: CORS_ORIGIN
+        value: "https://buildcrm-crm.onrender.com,https://buildcrm-admin.onrender.com"
+
+  # CRM (Next.js) — приложение для менеджеров
+  - type: web
+    name: buildcrm-crm
+    runtime: node
+    rootDir: apps/crm
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx next start -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: buildcrm-api
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # Admin (Next.js) — админка
+  - type: web
+    name: buildcrm-admin
+    runtime: node
+    rootDir: apps/admin
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx next start -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: buildcrm-api
+          envVarKey: RENDER_EXTERNAL_URL

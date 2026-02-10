@@ -1,0 +1,96 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+}
+
+export async function api<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = getToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || 'Request failed');
+  }
+  return res.json();
+}
+
+export type Tenant = { id: string; name: string };
+export type User = { id: string; email: string; name: string | null; tenantId: string; role: string };
+export type Stage = { id: string; name: string; type: string; order: number; _count?: { leads: number } };
+export type Lead = {
+  id: string;
+  stageId: string;
+  phone: string;
+  name: string | null;
+  leadScore: string;
+  aiActive: boolean;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  noResponseSince: string | null;
+  aiNotes?: string | null;
+  stage: { id: string; name: string; type: string };
+  assignedUser?: { id: string; name: string | null; email: string } | null;
+};
+export type Message = { id: string; source: string; direction: string; body: string | null; createdAt: string };
+
+export const auth = {
+  login: (tenantId: string, email: string, password: string) =>
+    api<{ access_token: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId, email, password }),
+    }),
+};
+
+export const tenants = {
+  list: () => api<Tenant[]>('/tenants'),
+};
+
+export const users = {
+  me: () => api<User>('/users/me'),
+  list: () => api<User[]>('/users'),
+};
+
+export const pipeline = {
+  list: () => api<Stage[]>('/pipeline'),
+};
+
+export const leads = {
+  list: (params?: { stageId?: string; onlyMine?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.stageId) q.set('stageId', params.stageId);
+    if (params?.onlyMine) q.set('onlyMine', 'true');
+    const query = q.toString();
+    return api<Lead[]>(`/leads${query ? `?${query}` : ''}`);
+  },
+  one: (id: string) => api<Lead & { metadata?: Record<string, unknown> }>(`/leads/${id}`),
+  create: (data: { stageId: string; phone: string; name?: string }) =>
+    api<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<{ stageId: string; assignedUserId: string | null; leadScore: string; aiActive: boolean; name: string }>) =>
+    api<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+};
+
+export const messages = {
+  list: (leadId: string) => api<Message[]>(`/leads/${leadId}/messages`),
+  create: (leadId: string, body: string) =>
+    api<Message>(`/leads/${leadId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+};
+
+export const ai = {
+  takeOver: (leadId: string) =>
+    api<Lead>(`/ai/leads/${leadId}/handoff/take`, { method: 'POST' }),
+  release: (leadId: string) =>
+    api<Lead>(`/ai/leads/${leadId}/handoff/release`, { method: 'POST' }),
+};
