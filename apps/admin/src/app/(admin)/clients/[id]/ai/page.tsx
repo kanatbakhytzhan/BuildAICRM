@@ -12,6 +12,7 @@ export default function ClientAIPage() {
   const [tenant, setTenant] = useState<{ name: string } | null>(null);
   const [settings, setSettings] = useState<TenantSettings | null>(null);
   const [form, setForm] = useState({
+    openaiApiKey: '',
     systemPrompt: '',
     respondFirst: true,
     suggestCall: true,
@@ -34,6 +35,7 @@ export default function ClientAIPage() {
         setTenant(t);
         setSettings(s);
         setForm({
+          openaiApiKey: s.openaiApiKey && s.openaiApiKey !== '••••••••' ? s.openaiApiKey : '',
           systemPrompt: s.systemPrompt || '',
           respondFirst: s.respondFirst,
           suggestCall: s.suggestCall,
@@ -86,6 +88,21 @@ export default function ClientAIPage() {
           <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600 }}>
             Сохранить изменения
           </button>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>OpenAI API ключ (для GPT-ответов)</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>Без ключа AI отвечает шаблонными фразами. Ключ берётся в <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>platform.openai.com/api-keys</a>. Хранится только у этого клиента.</p>
+          <input
+            type="password"
+            value={form.openaiApiKey}
+            onChange={(e) => setForm((f) => ({ ...f, openaiApiKey: e.target.value }))}
+            placeholder="sk-... (оставьте пустым, чтобы не менять)"
+            style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+          />
+          {settings?.openaiApiKey === '••••••••' && !form.openaiApiKey && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Ключ уже задан. Введите новый, чтобы заменить.</div>
+          )}
         </div>
 
         <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>

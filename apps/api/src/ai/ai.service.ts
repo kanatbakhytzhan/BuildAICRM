@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { FollowupsSchedulerService } from '../followups/followups.scheduler.service';
@@ -89,6 +90,38 @@ export class AiService {
       return (current ?? {}) as Prisma.InputJsonValue;
     }
     return this.mergeMetadata(current, patch);
+  }
+
+  private async generateOpenAIReply(params: {
+    leadId: string;
+    systemPrompt: string | null;
+    openaiApiKey: string;
+    currentUserMessage: string;
+  }): Promise<string> {
+    const recent = await this.prisma.message.findMany({
+      where: { leadId: params.leadId },
+      orderBy: { createdAt: 'asc' },
+      take: 30,
+    });
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: params.systemPrompt?.trim() || 'Ты вежливый AI-ассистент компании. Отвечай кратко и по делу. Общайся на том же языке, что и клиент.',
+      },
+      ...recent.map((m) => ({
+        role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
+        content: m.body || '',
+      })),
+      { role: 'user', content: params.currentUserMessage },
+    ];
+    const client = new OpenAI({ apiKey: params.openaiApiKey });
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      max_tokens: 500,
+    });
+    const content = completion.choices[0]?.message?.content?.trim();
+    return content || 'Спасибо за сообщение! Мы скоро свяжемся с вами.';
   }
 
   async handleFakeIncoming(params: { tenantId: string; leadId: string; text: string }) {
@@ -215,19 +248,37 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false };
     }
 
-    // Demo AI reply (stub, no external LLM) with behavior flags
-    let reply = 'Спасибо за сообщение! ';
-
-    if (settings?.suggestCall) {
-      reply += 'Мы можем организовать для вас звонок и подробно всё рассказать. ';
+    // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон
+    let reply: string;
+    if (settings?.openaiApiKey?.startsWith('sk-')) {
+      try {
+        reply = await this.generateOpenAIReply({
+          leadId: lead.id,
+          systemPrompt: settings.systemPrompt,
+          openaiApiKey: settings.openaiApiKey,
+          currentUserMessage: text,
+        });
+      } catch (err) {
+        await this.logs.log({
+          tenantId,
+          category: 'ai',
+          message: `OpenAI ошибка для лида ${lead.id}: ${(err as Error).message}`,
+          meta: { leadId: lead.id },
+        });
+        reply = 'Спасибо за сообщение! Сейчас заняты, скоро ответим.';
+      }
     } else {
-      reply += 'Сейчас подготовим для вас информацию по запросу. ';
-    }
-
-    if (settings?.askQuestions) {
-      reply += 'Подскажите, пожалуйста, какие детали для вас сейчас самые важные?';
-    } else {
-      reply += 'Мы скоро свяжемся с вами.';
+      reply = 'Спасибо за сообщение! ';
+      if (settings?.suggestCall) {
+        reply += 'Мы можем организовать для вас звонок и подробно всё рассказать. ';
+      } else {
+        reply += 'Сейчас подготовим для вас информацию по запросу. ';
+      }
+      if (settings?.askQuestions) {
+        reply += 'Подскажите, пожалуйста, какие детали для вас сейчас самые важные?';
+      } else {
+        reply += 'Мы скоро свяжемся с вами.';
+      }
     }
 
     await this.messages.create(lead.id, {

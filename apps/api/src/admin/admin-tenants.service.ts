@@ -40,23 +40,31 @@ export class AdminTenantsService {
 
   async getSettings(tenantId: string) {
     const t = await this.findOne(tenantId);
-    if (t.settings) return t.settings;
-    return this.prisma.tenantSettings.create({
-      data: { tenantId },
-    });
+    let s = t.settings;
+    if (!s) {
+      s = await this.prisma.tenantSettings.create({
+        data: { tenantId },
+      });
+    }
+    const out = { ...s } as Record<string, unknown>;
+    out.openaiApiKey = s.openaiApiKey ? '••••••••' : null;
+    return out as typeof s;
   }
 
   async updateSettings(tenantId: string, data: Record<string, unknown>) {
     await this.findOne(tenantId);
     const allowed = [
-      'aiEnabled', 'chatflowInstanceId', 'chatflowApiToken', 'webhookUrl',
+      'aiEnabled', 'openaiApiKey', 'chatflowInstanceId', 'chatflowApiToken', 'webhookUrl',
       'systemPrompt', 'respondFirst', 'suggestCall', 'askQuestions',
       'nightModeEnabled', 'nightModeStart', 'nightModeEnd', 'nightModeMessage',
       'followUpEnabled', 'followUpDelay', 'followUpMessage',
     ];
-    const payload = Object.fromEntries(
+    let payload = Object.fromEntries(
       Object.entries(data).filter(([k]) => allowed.includes(k))
     ) as Record<string, unknown>;
+    if (payload.openaiApiKey === '••••••••' || payload.openaiApiKey === '') {
+      delete payload.openaiApiKey;
+    }
     const existing = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
     });
