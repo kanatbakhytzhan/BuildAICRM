@@ -12,12 +12,14 @@ import { SystemModule } from './system/system.module';
 import { AiModule } from './ai/ai.module';
 import { FollowupsModule } from './followups/followups.module';
 import { HealthModule } from './health/health.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     HealthModule,
+    WebhooksModule,
     AuthModule,
     TenantsModule,
     UsersModule,
