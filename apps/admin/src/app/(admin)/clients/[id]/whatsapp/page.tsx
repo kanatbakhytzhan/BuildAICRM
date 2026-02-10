@@ -50,8 +50,8 @@ export default function ClientWhatsAppPage() {
 
   if (loading || !tenant) return <div style={{ padding: '2rem' }}>Загрузка...</div>;
 
-  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin.replace(/:\d+$/, ':4000')}` : '';
-  const suggestedWebhook = `${baseUrl}/webhooks/chatflow/${id}`;
+  const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || window.location.origin.replace(/:\d+$/, ':4000')) : '';
+  const suggestedWebhook = apiBase ? `${apiBase.replace(/\/$/, '')}/webhooks/chatflow/${id}` : '';
 
   return (
     <div style={{ padding: '1.5rem 2rem' }}>
@@ -103,7 +103,9 @@ export default function ClientWhatsAppPage() {
                 placeholder={suggestedWebhook}
                 style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
               />
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Укажите этот URL в настройках Webhook вашего провайдера.</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                Вебхук берётся отсюда: скопируйте URL выше (или подставьте из подсказки) и вставьте в личном кабинете ChatFlow в настройках Webhook. Должен быть адрес API: buildcrm-api.onrender.com.
+              </div>
             </label>
             <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600 }}>
               {saving ? 'Сохранение...' : 'Проверить и Сохранить'}
