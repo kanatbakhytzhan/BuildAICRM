@@ -11,11 +11,13 @@ import { AdminModule } from './admin/admin.module';
 import { SystemModule } from './system/system.module';
 import { AiModule } from './ai/ai.module';
 import { FollowupsModule } from './followups/followups.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    HealthModule,
     AuthModule,
     TenantsModule,
     UsersModule,
