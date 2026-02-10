@@ -24,7 +24,7 @@ export class AiService {
       current && typeof current === 'object' && !Array.isArray(current)
         ? (current as Record<string, unknown>)
         : {};
-    return { ...base, ...patch };
+    return { ...base, ...patch } as Prisma.InputJsonValue;
   }
 
   private extractMetadataFromText(

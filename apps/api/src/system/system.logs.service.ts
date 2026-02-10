@@ -10,7 +10,7 @@ export class SystemLogsService {
     tenantId?: string | null;
     category: SystemLogCategory;
     message: string;
-    meta?: Prisma.JsonValue;
+    meta?: Prisma.JsonValue | null;
   }) {
     const { tenantId, category, message, meta } = params;
     return this.prisma.systemLog.create({
@@ -18,7 +18,7 @@ export class SystemLogsService {
         tenantId: tenantId ?? null,
         category,
         message,
-        meta,
+        meta: meta === null ? Prisma.JsonNull : meta,
       },
     });
   }
