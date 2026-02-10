@@ -38,12 +38,32 @@ function parseChatFlowBody(body: Record<string, unknown>): { text: string; phone
     if (text === undefined) text = typeof msg.text === 'string' ? msg.text : (msg.body as string);
     if (phone === undefined) phone = (msg.from ?? body.from) as string | undefined;
   }
+  // Вложенные обёртки: data, payload (часто у конструкторов ботов)
+  const data = body.data as Record<string, unknown> | undefined;
+  const payload = body.payload as Record<string, unknown> | undefined;
+  if (data && typeof data === 'object') {
+    if (text === undefined && typeof data.text === 'string') text = data.text;
+    if (text === undefined && typeof data.body === 'string') text = data.body;
+    if (text === undefined && typeof data.message === 'string') text = data.message;
+    if (phone === undefined && data.from !== undefined) phone = String(data.from);
+    if (phone === undefined && data.phone !== undefined) phone = String(data.phone);
+    if (phone === undefined && data.jid !== undefined) phone = String(data.jid);
+  }
+  if (payload && typeof payload === 'object') {
+    if (text === undefined && typeof payload.text === 'string') text = payload.text;
+    if (text === undefined && typeof payload.body === 'string') text = payload.body;
+    if (phone === undefined && payload.from !== undefined) phone = String(payload.from);
+    if (phone === undefined && payload.phone !== undefined) phone = String(payload.phone);
+    if (phone === undefined && payload.jid !== undefined) phone = String(payload.jid);
+  }
   if (text === undefined && typeof body.text === 'string') text = body.text;
   if (text === undefined && typeof body.body === 'string') text = body.body;
   if (text === undefined && typeof body.content === 'string') text = body.content;
   if (text === undefined && typeof body.messageText === 'string') text = body.messageText;
+  if (text === undefined && typeof body.message === 'string') text = body.message;
   if (phone === undefined && body.phone !== undefined) phone = String(body.phone);
   if (phone === undefined && body.from !== undefined) phone = String(body.from);
+  if (phone === undefined && body.jid !== undefined) phone = String(body.jid);
   if (phone === undefined && body.sender !== undefined) phone = String(body.sender);
   if (phone === undefined && body.senderId !== undefined) phone = String(body.senderId);
   if (phone === undefined && body.userId !== undefined) phone = String(body.userId);
