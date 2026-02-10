@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "build": "nest build",
+    "build": "npx nest build",
     "start": "node dist/main",
     "prisma": "prisma",
     "db:seed": "ts-node prisma/seed.ts"
