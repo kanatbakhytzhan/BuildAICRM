@@ -26,7 +26,7 @@ export class WebhooksController {
       tenantId,
       category: 'whatsapp',
       message: 'ChatFlow webhook received',
-      meta: body as Prisma.InputJsonValue,
+      meta: JSON.parse(JSON.stringify(body)) as Prisma.JsonValue,
     });
 
     return { received: true, tenantId };
