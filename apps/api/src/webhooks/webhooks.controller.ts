@@ -165,6 +165,42 @@ export class WebhooksController {
       };
     }
 
-    return { received: true, tenantId, reply };
+    // Отправить ответ в WhatsApp через API ChatFlow (GET send-text), если заданы token и instance_id
+    let sentViaChatFlow = false;
+    if (reply) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+      });
+      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+        const jid = `${phone}@s.whatsapp.net`;
+        const url = new URL('https://app.chatflow.kz/api/v1/send-text');
+        url.searchParams.set('token', settings.chatflowApiToken);
+        url.searchParams.set('instance_id', settings.chatflowInstanceId);
+        url.searchParams.set('jid', jid);
+        url.searchParams.set('msg', reply);
+        try {
+          const res = await fetch(url.toString());
+          const data = (await res.json()) as { success?: boolean; message?: string };
+          sentViaChatFlow = data?.success === true;
+          if (!sentViaChatFlow) {
+            await this.logs.log({
+              tenantId,
+              category: 'whatsapp',
+              message: `ChatFlow send-text: отправка не удалась`,
+              meta: { jid, status: res.status, response: data },
+            });
+          }
+        } catch (sendErr) {
+          await this.logs.log({
+            tenantId,
+            category: 'whatsapp',
+            message: `ChatFlow send-text: ошибка запроса — ${(sendErr as Error).message}`,
+            meta: { jid },
+          });
+        }
+      }
+    }
+
+    return { received: true, tenantId, reply, sentViaChatFlow };
   }
 }
