@@ -9,13 +9,15 @@ databases:
     region: oregon
 
 services:
-  # API (NestJS + Prisma)
+  # API (NestJS + Prisma) — Node runtime стабильнее Docker на Render free tier
   - type: web
     name: buildcrm-api
-    runtime: docker
-    dockerfilePath: ./apps/api/Dockerfile
-    dockerContext: ./apps/api
+    runtime: node
+    rootDir: apps/api
     plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    preDeployCommand: npx prisma db push --skip-generate --accept-data-loss || true; npx prisma db seed || true
+    startCommand: node dist/src/main.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -25,6 +27,8 @@ services:
         generateValue: true
       - key: PORT
         value: "4000"
+      - key: NODE_ENV
+        value: production
       - key: CORS_ORIGIN
         value: "https://buildcrm-crm.onrender.com,https://buildcrm-admin.onrender.com"
 
