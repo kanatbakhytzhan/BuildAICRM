@@ -14,6 +14,7 @@ export default function ClientWhatsAppPage() {
   const [form, setForm] = useState({ instanceId: '', apiToken: '', webhookUrl: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     Promise.all([api.one(id), api.getSettings(id)])
@@ -52,6 +53,15 @@ export default function ClientWhatsAppPage() {
 
   const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || window.location.origin.replace(/:\d+$/, ':4000')) : '';
   const suggestedWebhook = apiBase ? `${apiBase.replace(/\/$/, '')}/webhooks/chatflow/${id}` : '';
+  const webhookToCopy = form.webhookUrl || suggestedWebhook;
+
+  const copyWebhook = () => {
+    if (!webhookToCopy) return;
+    navigator.clipboard.writeText(webhookToCopy).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div style={{ padding: '1.5rem 2rem' }}>
@@ -96,15 +106,26 @@ export default function ClientWhatsAppPage() {
             </label>
             <label style={{ display: 'block', marginBottom: '1rem' }}>
               <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Webhook URL (для входящих)</span>
-              <input
-                type="url"
-                value={form.webhookUrl}
-                onChange={(e) => setForm((f) => ({ ...f, webhookUrl: e.target.value }))}
-                placeholder={suggestedWebhook}
-                style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
-              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                <input
+                  type="url"
+                  value={form.webhookUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, webhookUrl: e.target.value }))}
+                  placeholder={suggestedWebhook}
+                  style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+                  readOnly={false}
+                />
+                <button
+                  type="button"
+                  onClick={copyWebhook}
+                  disabled={!webhookToCopy}
+                  style={{ padding: '0.5rem 1rem', background: copied ? 'var(--success)' : 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, whiteSpace: 'nowrap' }}
+                >
+                  {copied ? 'Скопировано!' : 'Скопировать'}
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                Вебхук берётся отсюда: скопируйте URL выше (или подставьте из подсказки) и вставьте в личном кабинете ChatFlow в настройках Webhook. Должен быть адрес API: buildcrm-api.onrender.com.
+                Вставьте этот URL в настройках Webhook в личном кабинете ChatFlow.
               </div>
             </label>
             <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600 }}>
