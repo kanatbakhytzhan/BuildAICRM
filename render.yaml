@@ -31,7 +31,7 @@ services:
       - key: CORS_ORIGIN
         value: "https://buildcrm-crm.onrender.com,https://buildcrm-admin.onrender.com"
 
-  # CRM (Next.js) — приложение для менеджеров
+  # CRM (Next.js) — приложение для менеджеров (фиксированный URL API для сборки)
   - type: web
     name: buildcrm-crm
     runtime: node
@@ -41,12 +41,9 @@ services:
     startCommand: npx next start -p $PORT
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: buildcrm-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: "https://buildcrm-api.onrender.com"
 
-  # Admin (Next.js) — админка
+  # Admin (Next.js) — админка (фиксированный URL API для сборки)
   - type: web
     name: buildcrm-admin
     runtime: node
@@ -56,7 +53,4 @@ services:
     startCommand: npx next start -p $PORT
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: buildcrm-api
-          envVarKey: RENDER_EXTERNAL_URL
+        value: "https://buildcrm-api.onrender.com"
