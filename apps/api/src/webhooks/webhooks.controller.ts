@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { SystemLogsService } from '../system/system.logs.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -68,6 +68,22 @@ function parseChatFlowBody(body: Record<string, unknown>): { text: string; phone
   return { text: text.trim(), phone: normalizedPhone };
 }
 
+/** Парсит text и phone из query-параметров (если ChatFlow передаёт данные в URL). */
+function parseFromQuery(query: Record<string, unknown>): { text: string; phone: string } | null {
+  const text =
+    typeof query.text === 'string' ? query.text :
+    typeof query.msg === 'string' ? query.msg :
+    undefined;
+  const phoneRaw =
+    query.from !== undefined ? String(query.from) :
+    query.phone !== undefined ? String(query.phone) :
+    query.jid !== undefined ? String(query.jid) :
+    undefined;
+  const phone = phoneRaw ? normalizePhone(phoneRaw) : '';
+  if (!text || text.trim() === '' || phone.length < 10) return null;
+  return { text: text.trim(), phone };
+}
+
 @Controller('webhooks/chatflow')
 export class WebhooksController {
   constructor(
@@ -80,6 +96,7 @@ export class WebhooksController {
   async chatflow(
     @Param('tenantId') tenantId: string,
     @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
   ) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
@@ -95,20 +112,23 @@ export class WebhooksController {
       meta: JSON.parse(JSON.stringify(body)) as Prisma.JsonValue,
     });
 
-    const parsed = parseChatFlowBody(body);
+    let parsed = parseChatFlowBody(body);
+    if (!parsed && (Object.keys(query).length > 0)) {
+      parsed = parseFromQuery(query);
+    }
     if (!parsed) {
       const bodyKeys = Object.keys(body);
       await this.logs.log({
         tenantId,
         category: 'whatsapp',
         message: 'ChatFlow: не удалось извлечь text/phone из тела запроса',
-        meta: { bodyKeys, bodySample: JSON.stringify(body).slice(0, 500) } as Prisma.JsonValue,
+        meta: { bodyKeys, bodySample: JSON.stringify(body).slice(0, 500), queryKeys: Object.keys(query) } as Prisma.JsonValue,
       });
       return {
         received: true,
         tenantId,
         reply: null,
-        debug: { reason: 'parse_failed', bodyKeys },
+        debug: { reason: 'parse_failed', bodyKeys, queryKeys: Object.keys(query) },
       };
     }
 
@@ -201,6 +221,73 @@ export class WebhooksController {
       }
     }
 
+    return { received: true, tenantId, reply, sentViaChatFlow };
+  }
+
+  /** Тот же сценарий по GET с параметрами в URL (text/msg + from/phone/jid). */
+  @Get(':tenantId')
+  async chatflowGet(
+    @Param('tenantId') tenantId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) return { received: false, error: 'Tenant not found' };
+
+    await this.logs.log({
+      tenantId,
+      category: 'whatsapp',
+      message: 'ChatFlow webhook received (GET)',
+      meta: JSON.parse(JSON.stringify(query)) as Prisma.JsonValue,
+    });
+
+    const parsed = parseFromQuery(query);
+    if (!parsed) {
+      await this.logs.log({
+        tenantId,
+        category: 'whatsapp',
+        message: 'ChatFlow GET: не удалось извлечь text/phone из query',
+        meta: { queryKeys: Object.keys(query) } as Prisma.JsonValue,
+      });
+      return { received: true, tenantId, reply: null, debug: { reason: 'parse_failed', queryKeys: Object.keys(query) } };
+    }
+
+    const { text, phone } = parsed;
+    let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
+    if (!lead) {
+      const firstStage = await this.prisma.pipelineStage.findFirst({ where: { tenantId }, orderBy: { order: 'asc' } });
+      if (!firstStage) return { received: true, tenantId, reply: null, debug: { reason: 'no_pipeline_stages' } };
+      lead = await this.prisma.lead.create({ data: { tenantId, stageId: firstStage.id, phone, name: null } });
+    }
+
+    let reply: string | null = null;
+    try {
+      const result = await this.ai.handleFakeIncoming({ tenantId, leadId: lead.id, text });
+      reply = result.reply ?? null;
+    } catch (err) {
+      const errMsg = (err as Error).message;
+      await this.logs.log({ tenantId, category: 'whatsapp', message: `ChatFlow GET: ошибка AI — ${errMsg}`, meta: { leadId: lead.id } });
+      return { received: true, tenantId, reply: null, debug: { reason: 'ai_error', error: errMsg } };
+    }
+
+    let sentViaChatFlow = false;
+    if (reply) {
+      const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
+      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+        const jid = `${phone}@s.whatsapp.net`;
+        const url = new URL('https://app.chatflow.kz/api/v1/send-text');
+        url.searchParams.set('token', settings.chatflowApiToken);
+        url.searchParams.set('instance_id', settings.chatflowInstanceId);
+        url.searchParams.set('jid', jid);
+        url.searchParams.set('msg', reply);
+        try {
+          const res = await fetch(url.toString());
+          const data = (await res.json()) as { success?: boolean };
+          sentViaChatFlow = data?.success === true;
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     return { received: true, tenantId, reply, sentViaChatFlow };
   }
 }
