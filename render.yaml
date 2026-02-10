@@ -9,15 +9,14 @@ databases:
     region: oregon
 
 services:
-  # API (NestJS + Prisma) — Node runtime стабильнее Docker на Render free tier
+  # API (NestJS + Prisma) — Node runtime (preDeploy не поддерживается на free tier)
   - type: web
     name: buildcrm-api
     runtime: node
     rootDir: apps/api
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: npx prisma db push --skip-generate --accept-data-loss || true; npx prisma db seed || true
-    startCommand: node dist/src/main.js
+    startCommand: npx prisma db push --skip-generate --accept-data-loss || true; npx prisma db seed || true; node dist/src/main.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
