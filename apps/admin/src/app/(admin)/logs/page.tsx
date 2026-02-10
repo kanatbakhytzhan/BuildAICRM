@@ -12,6 +12,7 @@ export default function LogsPage() {
   const [search, setSearch] = useState('');
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
 
   useEffect(() => {
     adminTenants
@@ -116,7 +117,11 @@ export default function LogsPage() {
           </thead>
           <tbody>
             {logs.map((log) => (
-              <tr key={log.id} style={{ borderTop: '1px solid var(--border)' }}>
+              <tr
+                key={log.id}
+                style={{ borderTop: '1px solid var(--border)', cursor: 'pointer' }}
+                onClick={() => setSelectedLog(log)}
+              >
                 <td style={{ padding: '0.75rem 1.25rem', fontSize: 14 }}>
                   {new Date(log.createdAt).toLocaleString('ru-RU')}
                 </td>
@@ -154,9 +159,74 @@ export default function LogsPage() {
           </tbody>
         </table>
         <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', fontSize: 14, color: 'var(--text-muted)' }}>
-          {loading ? 'Загрузка…' : `Показано ${logs.length} записей`}
+          {loading ? 'Загрузка…' : `Показано ${logs.length} записей. Клик по строке — открыть детали и meta.`}
         </div>
       </div>
+
+      {selectedLog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setSelectedLog(null)}
+        >
+          <div
+            style={{
+              background: 'var(--page-bg)',
+              borderRadius: 12,
+              padding: '1.5rem',
+              maxWidth: 560,
+              maxHeight: '85vh',
+              overflow: 'auto',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Детали лога</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedLog(null)}
+                style={{ padding: '0.25rem 0.5rem', border: '1px solid var(--border)', borderRadius: 6, background: 'white', cursor: 'pointer' }}
+              >
+                Закрыть
+              </button>
+            </div>
+            <p style={{ margin: '0 0 0.5rem', fontSize: 13, color: 'var(--text-muted)' }}>
+              {new Date(selectedLog.createdAt).toLocaleString('ru-RU')} · {selectedLog.tenant?.name || 'System'} · {categoryLabel(selectedLog.category)}
+            </p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: 14, fontWeight: 500 }}>{selectedLog.message}</p>
+            {selectedLog.meta != null && Object.keys(selectedLog.meta).length > 0 ? (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Meta (тело/данные):</div>
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: '0.75rem',
+                    background: 'var(--sidebar-bg)',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    overflow: 'auto',
+                    maxHeight: 320,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {JSON.stringify(selectedLog.meta, null, 2)}
+                </pre>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>Meta отсутствует</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
