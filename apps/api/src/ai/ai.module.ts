@@ -10,6 +10,7 @@ import { AiController } from './ai.controller';
   imports: [PrismaModule, MessagesModule, SystemModule, FollowupsModule],
   providers: [AiService],
   controllers: [AiController],
+  exports: [AiService],
 })
 export class AiModule {}
 

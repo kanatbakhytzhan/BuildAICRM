@@ -151,7 +151,7 @@ export class AiService {
           noResponseSince: null,
         },
       });
-      return { leadId: lead.id, aiHandled: false };
+      return { leadId: lead.id, aiHandled: false, reply: undefined };
     }
 
     const settings = await this.prisma.tenantSettings.findUnique({
@@ -234,7 +234,7 @@ export class AiService {
         message: `Ночное сообщение отправлено лиду ${lead.id}`,
         meta: { leadId: lead.id },
       });
-      return { lead: updatedLead, aiHandled: true };
+      return { lead: updatedLead, aiHandled: true, reply: settings.nightModeMessage ?? undefined };
     }
 
     // If AI is disabled on tenant or lead, stop here
@@ -245,7 +245,7 @@ export class AiService {
         message: `Входящее сообщение без AI-обработки (AI выключен) для лида ${lead.id}`,
         meta: { leadId: lead.id, text },
       });
-      return { lead: updatedLead, aiHandled: false };
+      return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
     // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон
@@ -301,7 +301,7 @@ export class AiService {
     });
 
     // Schedule follow-up if enabled
-    if (settings.followUpEnabled && settings.followUpMessage) {
+    if (settings?.followUpEnabled && settings?.followUpMessage) {
       const delayMinutes = Number(settings.followUpDelay || '0') || 0;
       await this.followups.scheduleLeadFollowUp({
         tenantId,
@@ -311,7 +311,7 @@ export class AiService {
       });
     }
 
-    return { lead: updatedLead, aiHandled: true };
+    return { lead: updatedLead, aiHandled: true, reply };
   }
 
   async takeOverLead(params: { tenantId: string; leadId: string; userId: string }) {
