@@ -93,7 +93,7 @@ export default function ClientDetailPage() {
         </div>
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-        Создан: {new Date(tenant.createdAt).toLocaleDateString('ru-RU')} · Часовой пояс: {tenant.settings?.defaultTimezone || 'Europe/Moscow'}
+        Создан: {new Date(tenant.createdAt).toLocaleDateString('ru-RU')} · Часовой пояс: Europe/Moscow
       </div>
 
       <div style={{ borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem' }}>
@@ -133,8 +133,8 @@ export default function ClientDetailPage() {
             </div>
             <div style={{ padding: '1.1rem 1.2rem', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--page-bg)' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>Часовой пояс</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>{tenant.settings?.defaultTimezone || 'Europe/Moscow'}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>UTC {tenant.settings?.timezoneOffset || '+03:00'}</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Europe/Moscow</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>UTC +03:00</div>
             </div>
             <div style={{ padding: '1.1rem 1.2rem', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--page-bg)' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>Статус клиента</div>

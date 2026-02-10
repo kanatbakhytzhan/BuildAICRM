@@ -19,6 +19,7 @@ model Tenant {
   leads              Lead[]
   settings           TenantSettings?
   followUpTemplates  FollowUpTemplate[]
+  systemLogs         SystemLog[]
 }
 
 model GlobalAdmin {
