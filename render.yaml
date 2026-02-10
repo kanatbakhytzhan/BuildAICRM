@@ -16,7 +16,7 @@ services:
     rootDir: apps/api
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma db push --skip-generate --accept-data-loss || true; npx prisma db seed || true; node dist/src/main.js
+    startCommand: (npx prisma db push --skip-generate --accept-data-loss || true) && (npx prisma db seed || true) && node dist/src/main.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -28,6 +28,8 @@ services:
         value: "4000"
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=460"
       - key: CORS_ORIGIN
         value: "https://buildcrm-crm.onrender.com,https://buildcrm-admin.onrender.com"
 
@@ -54,3 +56,5 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: "https://buildcrm-api.onrender.com"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=460"
