@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { MessageDirection, MessageSource, Prisma } from '@prisma/client';
 import { SystemLogsService } from '../system/system.logs.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { AiService } from '../ai/ai.service';
+import { MessagesService } from '../messages/messages.service';
+import { FollowupsSchedulerService } from '../followups/followups.scheduler.service';
 
 /** Нормализует номер телефона до цифр (для поиска лида). */
 function normalizePhone(v: unknown): string {
@@ -150,12 +151,15 @@ function parseFromQuery(query: Record<string, unknown>): { text: string; phone: 
   return { text: text.trim(), phone, channelExternalId };
 }
 
+const DELAY_MS = 60 * 1000; // 1 мин после последнего входящего (Этап 3)
+
 @Controller('webhooks/chatflow')
 export class WebhooksController {
   constructor(
     private logs: SystemLogsService,
     private prisma: PrismaService,
-    private ai: AiService,
+    private messages: MessagesService,
+    private followups: FollowupsSchedulerService,
   ) {}
 
   /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
@@ -264,74 +268,25 @@ export class WebhooksController {
       await this.prisma.lead.update({ where: { id: lead.id }, data: { name: senderName } });
     }
 
-    let reply: string | null = null;
-    try {
-      const result = await this.ai.handleFakeIncoming({
-        tenantId,
-        leadId: lead.id,
-        text,
+    // Этап 3: сохраняем входящее, откладываем ответ на 1 мин (пачка сообщений → один ответ).
+    await this.messages.createForLead(tenantId, lead.id, {
+      source: MessageSource.human,
+      direction: MessageDirection.in,
+      body: text,
+    });
+    this.followups.cancelLeadFollowUps(lead.id);
+
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+    });
+    if (settings?.aiEnabled && lead.aiActive) {
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },
       });
-      reply = result.reply ?? null;
-    } catch (err) {
-      const errMsg = (err as Error).message;
-      await this.logs.log({
-        tenantId,
-        category: 'whatsapp',
-        message: `ChatFlow: ошибка AI при ответе лиду ${lead.id}: ${errMsg}`,
-        meta: { leadId: lead.id, phone, text },
-      });
-      return {
-        received: true,
-        tenantId,
-        reply: null,
-        debug: { reason: 'ai_error', error: errMsg },
-      };
     }
 
-    // Отправить ответ с того же номера (канала): instance_id = канал лида или дефолт из настроек.
-    let sentViaChatFlow = false;
-    if (reply) {
-      const settings = await this.prisma.tenantSettings.findUnique({
-        where: { tenantId },
-      });
-      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
-      if (lead.channelId) {
-        const ch = await this.prisma.tenantChannel.findUnique({
-          where: { id: lead.channelId },
-        });
-        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
-      }
-      if (settings?.chatflowApiToken && instanceId) {
-        const jid = `${phone}@s.whatsapp.net`;
-        const url = new URL('https://app.chatflow.kz/api/v1/send-text');
-        url.searchParams.set('token', settings.chatflowApiToken);
-        url.searchParams.set('instance_id', instanceId);
-        url.searchParams.set('jid', jid);
-        url.searchParams.set('msg', reply);
-        try {
-          const res = await fetch(url.toString());
-          const data = (await res.json()) as { success?: boolean; message?: string };
-          sentViaChatFlow = data?.success === true;
-          if (!sentViaChatFlow) {
-            await this.logs.log({
-              tenantId,
-              category: 'whatsapp',
-              message: `ChatFlow send-text: отправка не удалась`,
-              meta: { jid, status: res.status, response: data },
-            });
-          }
-        } catch (sendErr) {
-          await this.logs.log({
-            tenantId,
-            category: 'whatsapp',
-            message: `ChatFlow send-text: ошибка запроса — ${(sendErr as Error).message}`,
-            meta: { jid },
-          });
-        }
-      }
-    }
-
-    return { received: true, tenantId, reply, sentViaChatFlow };
+    return { received: true, tenantId, reply: null, scheduledIn: 60 };
   }
 
   /** GET с параметрами в URL (text/msg + from/phone/jid). */
@@ -376,40 +331,19 @@ export class WebhooksController {
       });
     }
 
-    let reply: string | null = null;
-    try {
-      const result = await this.ai.handleFakeIncoming({ tenantId, leadId: lead.id, text });
-      reply = result.reply ?? null;
-    } catch (err) {
-      const errMsg = (err as Error).message;
-      await this.logs.log({ tenantId, category: 'whatsapp', message: `ChatFlow GET: ошибка AI — ${errMsg}`, meta: { leadId: lead.id } });
-      return { received: true, tenantId, reply: null, debug: { reason: 'ai_error', error: errMsg } };
+    await this.messages.createForLead(tenantId, lead.id, {
+      source: MessageSource.human,
+      direction: MessageDirection.in,
+      body: text,
+    });
+    this.followups.cancelLeadFollowUps(lead.id);
+    const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
+    if (settings?.aiEnabled && lead.aiActive) {
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },
+      });
     }
-
-    let sentViaChatFlow = false;
-    if (reply) {
-      const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
-      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
-      if (lead.channelId) {
-        const ch = await this.prisma.tenantChannel.findUnique({ where: { id: lead.channelId } });
-        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
-      }
-      if (settings?.chatflowApiToken && instanceId) {
-        const jid = `${phone}@s.whatsapp.net`;
-        const url = new URL('https://app.chatflow.kz/api/v1/send-text');
-        url.searchParams.set('token', settings.chatflowApiToken);
-        url.searchParams.set('instance_id', instanceId);
-        url.searchParams.set('jid', jid);
-        url.searchParams.set('msg', reply);
-        try {
-          const res = await fetch(url.toString());
-          const data = (await res.json()) as { success?: boolean };
-          sentViaChatFlow = data?.success === true;
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    return { received: true, tenantId, reply, sentViaChatFlow };
+    return { received: true, tenantId, reply: null, scheduledIn: 60 };
   }
 }

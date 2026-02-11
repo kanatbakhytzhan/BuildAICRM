@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import OpenAI from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
@@ -97,6 +98,34 @@ export class AiService {
       return (current ?? {}) as Prisma.InputJsonValue;
     }
     return this.mergeMetadata(current, patch);
+  }
+
+  /**
+   * Выбирает этап воронки по типу. Если у лида есть тема (topicId), сначала ищется этап с этой темой,
+   * иначе — этап без привязки к теме. Так ИИ «отправляет» лида в тематический этап (например «Ламинат (new)»),
+   * если он настроен, иначе в общий (например «Новые»).
+   */
+  private async findStageByType(
+    tenantId: string,
+    type: string,
+    leadTopicId?: string | null,
+  ): Promise<{ id: string } | null> {
+    if (leadTopicId) {
+      const withTopic = await this.prisma.pipelineStage.findFirst({
+        where: { tenantId, type, topicId: leadTopicId },
+        select: { id: true },
+      });
+      if (withTopic) return withTopic;
+    }
+    const general = await this.prisma.pipelineStage.findFirst({
+      where: { tenantId, type, topicId: null },
+      select: { id: true },
+    });
+    if (general) return general;
+    return this.prisma.pipelineStage.findFirst({
+      where: { tenantId, type },
+      select: { id: true },
+    });
   }
 
   /** Парсит из текста указание «когда перезвонить» и возвращает ISO-дату и подпись. Всегда пишем в БД точное время. */
@@ -232,13 +261,14 @@ export class AiService {
     });
     const contextBlock = this.formatMetadataForPrompt(params.leadMetadata ?? null);
     const systemContent = (params.systemPrompt?.trim() || 'Ты вежливый AI-ассистент компании. Отвечай кратко и по делу. Общайся на том же языке, что и клиент.') + contextBlock;
+    const history = recent.map((m) => ({
+      role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
+      content: m.body || '',
+    }));
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemContent },
-      ...recent.map((m) => ({
-        role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
-        content: m.body || '',
-      })),
-      { role: 'user', content: params.currentUserMessage },
+      ...history,
+      ...(params.currentUserMessage ? [{ role: 'user' as const, content: params.currentUserMessage }] : []),
     ];
     const client = new OpenAI({ apiKey: params.openaiApiKey });
     const completion = await client.chat.completions.create({
@@ -250,8 +280,8 @@ export class AiService {
     return content || 'Спасибо за сообщение! Мы скоро свяжемся с вами.';
   }
 
-  async handleFakeIncoming(params: { tenantId: string; leadId: string; text: string }) {
-    const { tenantId, leadId, text } = params;
+  async handleFakeIncoming(params: { tenantId: string; leadId: string; text: string; skipSaveIncoming?: boolean }) {
+    const { tenantId, leadId, text, skipSaveIncoming } = params;
 
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
@@ -263,20 +293,21 @@ export class AiService {
 
     const systemSettings = await this.systemSettings.getSettings();
     if (!systemSettings.aiGlobalEnabled) {
-      // Just record the incoming message without AI reply
-      await this.messages.create(lead.id, {
-        source: MessageSource.human,
-        direction: MessageDirection.in,
-        body: text,
-      });
-      await this.prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          lastMessageAt: new Date(),
-          lastMessagePreview: text.slice(0, 120),
-          noResponseSince: null,
-        },
-      });
+      if (!skipSaveIncoming) {
+        await this.messages.create(lead.id, {
+          source: MessageSource.human,
+          direction: MessageDirection.in,
+          body: text,
+        });
+        await this.prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            lastMessageAt: new Date(),
+            lastMessagePreview: text.slice(0, 120),
+            noResponseSince: null,
+          },
+        });
+      }
       return { leadId: lead.id, aiHandled: false, reply: undefined };
     }
 
@@ -284,12 +315,14 @@ export class AiService {
       where: { tenantId },
     });
 
-    // Save incoming message from client
-    await this.messages.create(lead.id, {
-      source: MessageSource.human,
-      direction: MessageDirection.in,
-      body: text,
-    });
+    // Save incoming message from client (unless processing batch — already saved in webhook)
+    if (!skipSaveIncoming) {
+      await this.messages.create(lead.id, {
+        source: MessageSource.human,
+        direction: MessageDirection.in,
+        body: text,
+      });
+    }
 
     // Client replied – cancel pending follow-ups for this lead
     this.followups.cancelLeadFollowUps(lead.id);
@@ -306,23 +339,17 @@ export class AiService {
     if (lower.includes('не интересно') || lower.includes('отказ') || lower.includes('не актуально')) {
       newScore = 'cold';
       decisionReason = 'клиент явно отказался (\"не интересно\", \"отказ\", \"не актуально\")';
-      const refusedStage = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'refused' },
-      });
+      const refusedStage = await this.findStageByType(tenantId, 'refused', lead.topicId);
       if (refusedStage) newStageId = refusedStage.id;
     } else if (meta.suggestedCallAt != null || meta.suggestedCallNote != null || lower.includes('звон') || lower.includes('созвон')) {
       newScore = 'hot';
       decisionReason = meta.suggestedCallAt != null ? 'указано время перезвона' : 'клиент хочет созвон';
-      const wantsCall = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'wants_call' },
-      });
+      const wantsCall = await this.findStageByType(tenantId, 'wants_call', lead.topicId);
       if (wantsCall) newStageId = wantsCall.id;
     } else if (lower.includes('цена') || lower.includes('стоимость') || lower.includes('сколько')) {
       newScore = 'warm';
       decisionReason = 'клиент уточняет условия/цену';
-      const inProgress = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'in_progress' },
-      });
+      const inProgress = await this.findStageByType(tenantId, 'in_progress', lead.topicId);
       if (inProgress) newStageId = inProgress.id;
     } else if (meta.city != null || meta.dimensions != null) {
       newScore = 'warm';
@@ -331,15 +358,11 @@ export class AiService {
         : meta.city != null
           ? 'получен город'
           : 'получены размеры';
-      const inProgress = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'in_progress' },
-      });
-      if (inProgress) newStageId = inProgress.id;
+      const inProgress2 = await this.findStageByType(tenantId, 'in_progress', lead.topicId);
+      if (inProgress2) newStageId = inProgress2.id;
     }
     if (meta.city != null && meta.dimensions != null && newScore === 'warm') {
-      const fullData = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'full_data' },
-      });
+      const fullData = await this.findStageByType(tenantId, 'full_data', lead.topicId);
       if (fullData) {
         newStageId = fullData.id;
         decisionReason = 'город и размеры получены — полные данные';
@@ -405,7 +428,7 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
-    // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон
+    // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон. При батче (skipSaveIncoming) контекст уже в БД, не дублируем.
     let reply: string;
     if (settings?.openaiApiKey?.startsWith('sk-')) {
       try {
@@ -413,7 +436,7 @@ export class AiService {
           leadId: lead.id,
           systemPrompt: settings.systemPrompt,
           openaiApiKey: settings.openaiApiKey,
-          currentUserMessage: text,
+          currentUserMessage: skipSaveIncoming ? '' : text,
           leadMetadata: updatedLead.metadata,
         });
       } catch (err) {
@@ -527,6 +550,67 @@ export class AiService {
     });
 
     return updated;
+  }
+
+  /** Этап 3: каждые 30 сек обрабатываем лидов с отложенным ответом (1 мин после последнего входящего). */
+  @Cron('*/30 * * * * *')
+  async processScheduledReplies(): Promise<void> {
+    const now = new Date();
+    const leads = await this.prisma.lead.findMany({
+      where: {
+        aiReplyScheduledAt: { not: null, lte: now },
+        aiActive: true,
+      },
+      include: { stage: true },
+    });
+    for (const lead of leads) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId: lead.tenantId },
+      });
+      if (!settings?.aiEnabled) {
+        await this.prisma.lead.update({
+          where: { id: lead.id },
+          data: { aiReplyScheduledAt: null },
+        });
+        continue;
+      }
+      const allMessages = await this.prisma.message.findMany({
+        where: { leadId: lead.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      let lastOutIndex = -1;
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        if (allMessages[i].direction === MessageDirection.out) {
+          lastOutIndex = i;
+          break;
+        }
+      }
+      const batch = allMessages.slice(lastOutIndex + 1).filter((m) => m.direction === MessageDirection.in);
+      const batchText = batch.map((m) => m.body || '').filter(Boolean).join('\n');
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { aiReplyScheduledAt: null },
+      });
+      if (!batchText.trim()) continue;
+      try {
+        const result = await this.handleFakeIncoming({
+          tenantId: lead.tenantId,
+          leadId: lead.id,
+          text: batchText,
+          skipSaveIncoming: true,
+        });
+        if (result.reply) {
+          await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
+        }
+      } catch (err) {
+        await this.logs.log({
+          tenantId: lead.tenantId,
+          category: 'ai',
+          message: `Ошибка отложенного ответа лиду ${lead.id}: ${(err as Error).message}`,
+          meta: { leadId: lead.id },
+        });
+      }
+    }
   }
 }
 

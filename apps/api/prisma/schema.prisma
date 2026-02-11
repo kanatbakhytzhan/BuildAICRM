@@ -185,6 +185,7 @@ model Lead {
   lastMessagePreview String?
   noResponseSince DateTime?
   aiNotes        String?   @db.Text
+  aiReplyScheduledAt DateTime?  // Этап 3: ответить через 1 мин после последнего входящего
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -202,6 +203,7 @@ model Lead {
   @@index([assignedUserId])
   @@index([tenantId, lastMessageAt])
   @@index([tenantId, phone, channelId])
+  @@index([aiReplyScheduledAt])
 }
 
 enum MessageSource {

@@ -386,6 +386,9 @@ export default function LeadsPage() {
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div className="lead-card-name" style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name || lead.phone}</div>
                               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Стадия: {lead.stage.name}</div>
+                              {lead.channel && (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Канал: {lead.channel.name}</div>
+                              )}
                               {noResp ? (
                                 <div style={{ fontSize: 11, color: 'var(--warning)', fontWeight: 500, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <span aria-hidden>🕐</span> {noResp}

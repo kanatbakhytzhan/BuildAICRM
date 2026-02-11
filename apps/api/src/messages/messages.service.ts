@@ -94,4 +94,38 @@ export class MessagesService {
 
     return message;
   }
+
+  /** Отправить исходящее сообщение лиду в WhatsApp (тот же канал/номер, что у лида). Для AI и webhook. */
+  async sendToLead(tenantId: string, leadId: string, body: string): Promise<boolean> {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: leadId, tenantId },
+    });
+    if (!lead || !body?.trim()) return false;
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+    });
+    let instanceId: string | null = settings?.chatflowInstanceId ?? null;
+    if (lead.channelId) {
+      const ch = await this.prisma.tenantChannel.findUnique({
+        where: { id: lead.channelId },
+      });
+      if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
+    }
+    if (!settings?.chatflowApiToken || !instanceId) return false;
+    const phone = String(lead.phone).replace(/\D/g, '');
+    if (phone.length < 10) return false;
+    const jid = `${phone}@s.whatsapp.net`;
+    const url = new URL('https://app.chatflow.kz/api/v1/send-text');
+    url.searchParams.set('token', settings.chatflowApiToken);
+    url.searchParams.set('instance_id', instanceId);
+    url.searchParams.set('jid', jid);
+    url.searchParams.set('msg', body.trim());
+    try {
+      const res = await fetch(url.toString());
+      const data = (await res.json()) as { success?: boolean };
+      return data?.success === true;
+    } catch {
+      return false;
+    }
+  }
 }
