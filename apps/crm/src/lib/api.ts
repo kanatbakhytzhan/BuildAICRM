@@ -25,7 +25,7 @@ export async function api<T>(
 }
 
 export type Tenant = { id: string; name: string };
-export type User = { id: string; email: string; name: string | null; tenantId: string; role: string };
+export type User = { id: string; email: string; name: string | null; tenantId?: string; role: string; visibleTopicIds?: string[] };
 export type Stage = { id: string; name: string; type: string; order: number; topicId?: string | null; topic?: { id: string; name: string } | null; _count?: { leads: number } };
 export type Channel = { id: string; name: string; externalId: string };
 export type Topic = { id: string; name: string; sortOrder: number };
@@ -65,20 +65,37 @@ export const tenants = {
 export const users = {
   me: () => api<User>('/users/me'),
   list: () => api<User[]>('/users'),
-  create: (data: { email: string; password: string; name?: string; role: string }) =>
+  create: (data: { email: string; password: string; name?: string; role: string; visibleTopicIds?: string[] }) =>
     api<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateVisibleTopics: (userId: string, visibleTopicIds: string[]) =>
+    api<User>(`/users/${userId}/visible-topics`, { method: 'PATCH', body: JSON.stringify({ visibleTopicIds }) }),
 };
 
 export const pipeline = {
   list: () => api<Stage[]>('/pipeline'),
+  create: (data: { name: string; type: string; topicId?: string }) =>
+    api<Stage>('/pipeline', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; type?: string; order?: number; topicId?: string | null }) =>
+    api<Stage>(`/pipeline/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => api<void>(`/pipeline/${id}`, { method: 'DELETE' }),
 };
 
 export const channels = {
   list: () => api<Channel[]>('/channels'),
+  create: (data: { name: string; externalId: string }) =>
+    api<Channel>('/channels', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; externalId?: string }) =>
+    api<Channel>(`/channels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => api<void>(`/channels/${id}`, { method: 'DELETE' }),
 };
 
 export const topics = {
   list: () => api<Topic[]>('/topics'),
+  create: (data: { name: string; sortOrder?: number }) =>
+    api<Topic>('/topics', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; sortOrder?: number }) =>
+    api<Topic>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => api<void>(`/topics/${id}`, { method: 'DELETE' }),
 };
 
 export const leads = {

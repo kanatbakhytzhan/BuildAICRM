@@ -101,21 +101,44 @@ export class AiService {
 
   /** Парсит из текста указание «когда перезвонить» и возвращает ISO-дату и подпись. Всегда пишем в БД точное время. */
   private parseSuggestedCallTime(text: string): { at: string; note: string } | null {
-    const lower = text.toLowerCase().trim();
+    const lower = text.toLowerCase().trim().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
     const now = new Date();
     let at: Date | null = null;
     let note = '';
 
-    // через полчаса / пол часа / жарты сагат
-    if (
-      /(через\s+)?(полчаса|пол\s+часа|жарты?\s+сагат|сагат\s+кейн|полчаса\s+кейн)/.test(lower) ||
-      /бугин\s+жарт\s+сагат/.test(lower)
-    ) {
+    // казах: жарты сагаттан кейн / жарты сагат
+    if (/жарты\s*сагат(тан?\s*кейн)?/.test(lower) || /бугин\s+жарт\s+сагат/.test(lower)) {
       at = new Date(now.getTime() + 30 * 60 * 1000);
       note = 'Через 30 мин';
     }
-    // через N часов (2 часа, через 3 часа)
-    else if (!at) {
+    // казах: еки сагаттан кейн, 2 сагаттан кейн, N сагаттан кейн
+    if (!at && /(\d+)\s*сагат(тан?\s*кейн)?/.test(lower)) {
+      const kzHoursMatch = lower.match(/(\d+)\s*сагат(тан?\s*кейн)?/);
+      if (kzHoursMatch) {
+        const h = Number(kzHoursMatch[1]);
+        if (!Number.isNaN(h) && h >= 1 && h <= 24) {
+          at = new Date(now.getTime() + h * 60 * 60 * 1000);
+          note = h === 1 ? 'Через 1 час' : `Через ${h} ч`;
+        }
+      }
+    }
+    // казах: еки/екі сагаттан кейн (словом "два")
+    if (!at && /(еки|екі)\s*сагат(тан?\s*кейн)?/.test(lower)) {
+      at = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      note = 'Через 2 ч';
+    }
+    // казах: бір сагаттан кейн / сагаттан кейн (один час)
+    if (!at && /(бир|бір)\s*сагат(тан?\s*кейн)?|сагаттан\s*кейн/.test(lower)) {
+      at = new Date(now.getTime() + 60 * 60 * 1000);
+      note = 'Через 1 час';
+    }
+    // через полчаса / пол часа (рус)
+    if (!at && (/(через\s+)?(полчаса|пол\s+часа)/.test(lower) || /полчаса\s+кейн/.test(lower))) {
+      at = new Date(now.getTime() + 30 * 60 * 1000);
+      note = 'Через 30 мин';
+    }
+    // через N часов (2 часа, через 3 часа) — рус
+    if (!at) {
       const hoursMatch = lower.match(/через\s+(\d+)\s*час/);
       if (hoursMatch) {
         const h = Number(hoursMatch[1]);
@@ -125,7 +148,7 @@ export class AiService {
         }
       }
     }
-    // через час / через 1 час (если не поймали выше)
+    // через час / через 1 час (рус)
     if (!at && /(через\s+)?(1\s+)?час[ау]?(\s+кейн)?/.test(lower) && !lower.includes('полчаса') && !lower.includes('жарты')) {
       at = new Date(now.getTime() + 60 * 60 * 1000);
       note = 'Через 1 час';

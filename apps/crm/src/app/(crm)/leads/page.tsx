@@ -374,6 +374,14 @@ export default function LeadsPage() {
                         }}
                       >
                         <Link href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative', zIndex: 1 }} onClick={(e) => isMoving && e.preventDefault()}>
+                          {isUrgent && (lead.metadata as Record<string, unknown> | null)?.suggestedCallAt != null && (
+                            <div style={{ marginBottom: 6, padding: '0.4rem 0.5rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span aria-hidden>📞</span>
+                              {(lead.metadata as Record<string, unknown>).suggestedCallNote != null
+                                ? String((lead.metadata as Record<string, unknown>).suggestedCallNote)
+                                : new Date(String((lead.metadata as Record<string, unknown>).suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div className="lead-card-name" style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name || lead.phone}</div>

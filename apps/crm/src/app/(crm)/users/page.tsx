@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { users, leads, type User } from '@/lib/api';
+import { users, leads, topics, type User } from '@/lib/api';
 
 const PAGE_SIZE = 10;
 
@@ -45,8 +45,14 @@ export default function UsersPage() {
   const [createPassword, setCreatePassword] = useState('');
   const [createName, setCreateName] = useState('');
   const [createRole, setCreateRole] = useState<string>('manager');
+  const [createVisibleTopicIds, setCreateVisibleTopicIds] = useState<string[]>([]);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [topicsList, setTopicsList] = useState<{ id: string; name: string }[]>([]);
+  const [editTopicsUser, setEditTopicsUser] = useState<User | null>(null);
+  const [editTopicsIds, setEditTopicsIds] = useState<string[]>([]);
+  const [editTopicsLoading, setEditTopicsLoading] = useState(false);
+  const [editTopicsError, setEditTopicsError] = useState('');
 
   const canInvite = currentUser?.role === 'owner' || currentUser?.role === 'rop';
 
@@ -59,6 +65,10 @@ export default function UsersPage() {
       setList(data);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (canInvite) topics.list().then(setTopicsList).catch(() => {});
+  }, [canInvite]);
 
   useEffect(() => {
     if (list.length === 0) return;
@@ -109,6 +119,7 @@ export default function UsersPage() {
               setCreatePassword('');
               setCreateName('');
               setCreateRole('manager');
+              setCreateVisibleTopicIds([]);
               setCreateError('');
             }}
             style={{
@@ -206,6 +217,7 @@ export default function UsersPage() {
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Имя</th>
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Роль</th>
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Лиды</th>
+                  <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Темы</th>
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Статус</th>
                   <th style={{ width: 40 }} />
                 </tr>
@@ -252,17 +264,37 @@ export default function UsersPage() {
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: 14 }}>
                       {leadCounts[u.id] ?? 0} активных
                     </td>
+                    <td style={{ padding: '0.75rem 1rem', fontSize: 13 }}>
+                      {u.role === 'manager' ? (
+                        u.visibleTopicIds?.length ? (
+                          <span style={{ color: 'var(--text-muted)' }}>{u.visibleTopicIds.length} тем</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>все</span>
+                        )
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                      {canInvite && u.role === 'manager' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditTopicsUser(u);
+                            setEditTopicsIds(u.visibleTopicIds ?? []);
+                            setEditTopicsError('');
+                          }}
+                          style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Изменить
+                        </button>
+                      )}
+                    </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)' }} />
                         Активен
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)' }} title="Ещё">
-                        ⋮
-                      </button>
-                    </td>
+                    <td style={{ padding: '0.75rem 1rem' }} />
                   </tr>
                 ))}
               </tbody>
@@ -373,6 +405,7 @@ export default function UsersPage() {
                     password: createPassword,
                     name: createName.trim() || undefined,
                     role: createRole,
+                    visibleTopicIds: createRole === 'manager' && createVisibleTopicIds.length > 0 ? createVisibleTopicIds : undefined,
                   });
                   const data = await users.list();
                   setList(data);
@@ -427,6 +460,26 @@ export default function UsersPage() {
                   ))}
                 </select>
               </label>
+              {createRole === 'manager' && topicsList.length > 0 && (
+                <label style={{ display: 'block', marginBottom: '1rem' }}>
+                  <span style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-muted)' }}>Видит темы (оставьте пустым — видит все)</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
+                    {topicsList.map((t) => (
+                      <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                        <input
+                          type="checkbox"
+                          checked={createVisibleTopicIds.includes(t.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setCreateVisibleTopicIds((prev) => [...prev, t.id]);
+                            else setCreateVisibleTopicIds((prev) => prev.filter((id) => id !== t.id));
+                          }}
+                        />
+                        {t.name}
+                      </label>
+                    ))}
+                  </div>
+                </label>
+              )}
               {createError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: '0.75rem' }}>{createError}</p>}
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                 <button
@@ -445,6 +498,85 @@ export default function UsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editTopicsUser && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => !editTopicsLoading && setEditTopicsUser(null)}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.5rem',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem' }}>Видимые темы</h2>
+            <p style={{ margin: '0 0 1rem', fontSize: 14, color: 'var(--text-muted)' }}>
+              {editTopicsUser.name || editTopicsUser.email}. Пустой список — менеджер видит лиды по всем темам.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginBottom: '1rem' }}>
+              {topicsList.map((t) => (
+                <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={editTopicsIds.includes(t.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setEditTopicsIds((prev) => [...prev, t.id]);
+                      else setEditTopicsIds((prev) => prev.filter((id) => id !== t.id));
+                    }}
+                  />
+                  {t.name}
+                </label>
+              ))}
+            </div>
+            {editTopicsError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: '0.75rem' }}>{editTopicsError}</p>}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => !editTopicsLoading && setEditTopicsUser(null)}
+                style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={editTopicsLoading}
+                onClick={async () => {
+                  setEditTopicsError('');
+                  setEditTopicsLoading(true);
+                  try {
+                    await users.updateVisibleTopics(editTopicsUser.id, editTopicsIds);
+                    const data = await users.list();
+                    setList(data);
+                    setEditTopicsUser(null);
+                  } catch (err) {
+                    setEditTopicsError(err instanceof Error ? err.message : 'Ошибка');
+                  } finally {
+                    setEditTopicsLoading(false);
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}
+              >
+                {editTopicsLoading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
           </div>
         </div>
       )}

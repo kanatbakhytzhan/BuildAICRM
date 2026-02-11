@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { LeadsService } from './leads.service';
+import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
@@ -55,7 +56,10 @@ class UpdateLeadDto {
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
 export class LeadsController {
-  constructor(private leadsService: LeadsService) {}
+  constructor(
+    private leadsService: LeadsService,
+    private usersService: UsersService,
+  ) {}
 
   @Get()
   async list(
@@ -63,11 +67,13 @@ export class LeadsController {
     @Query('stageId') stageId?: string,
     @Query('onlyMine') onlyMine?: string,
   ) {
+    const visibleTopicIds = await this.usersService.getVisibleTopicIds(user.id);
     return this.leadsService.list({
       tenantId: user.tenantId,
       stageId,
       onlyMine: onlyMine === 'true',
       userId: user.id,
+      visibleTopicIds,
     });
   }
 

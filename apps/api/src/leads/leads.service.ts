@@ -8,6 +8,8 @@ export interface ListLeadsOptions {
   assignedUserId?: string | null;
   onlyMine?: boolean;
   userId?: string;
+  /** Для менеджера: только лиды с этими topicId или без темы. null = все. */
+  visibleTopicIds?: string[] | null;
 }
 
 @Injectable()
@@ -15,10 +17,15 @@ export class LeadsService {
   constructor(private prisma: PrismaService) {}
 
   async list(options: ListLeadsOptions) {
-    const where: Record<string, unknown> = { tenantId: options.tenantId };
+    const where: Prisma.LeadWhereInput = { tenantId: options.tenantId };
     if (options.stageId) where.stageId = options.stageId;
     if (options.onlyMine && options.userId) where.assignedUserId = options.userId;
     else if (options.assignedUserId !== undefined) where.assignedUserId = options.assignedUserId;
+    if (options.visibleTopicIds != null && options.visibleTopicIds.length > 0) {
+      where.AND = [
+        { OR: [{ topicId: { in: options.visibleTopicIds } }, { topicId: null }] },
+      ];
+    }
 
     return this.prisma.lead.findMany({
       where,

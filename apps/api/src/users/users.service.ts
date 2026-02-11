@@ -16,23 +16,47 @@ export class UsersService {
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, name: true, tenantId: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        tenantId: true,
+        role: true,
+        visibleTopics: { select: { topicId: true } },
+      },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    const { visibleTopics, ...rest } = user;
+    return { ...rest, visibleTopicIds: visibleTopics.map((v) => v.topicId) };
   }
 
   async listByTenant(tenantId: string) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { tenantId },
-      select: { id: true, email: true, name: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        visibleTopics: { select: { topicId: true } },
+      },
       orderBy: { createdAt: 'asc' },
     });
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      visibleTopicIds: u.visibleTopics.map((v) => v.topicId),
+    }));
   }
 
-  async create(tenantId: string, data: { email: string; password: string; name?: string; role: UserRole }) {
+  async create(
+    tenantId: string,
+    data: { email: string; password: string; name?: string; role: UserRole; visibleTopicIds?: string[] },
+  ) {
     const passwordHash = await bcrypt.hash(data.password, 10);
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         tenantId,
         email: data.email.toLowerCase(),
@@ -42,5 +66,36 @@ export class UsersService {
       },
       select: { id: true, email: true, name: true, role: true },
     });
+    if (data.visibleTopicIds?.length) {
+      await this.prisma.userVisibleTopic.createMany({
+        data: data.visibleTopicIds.map((topicId) => ({ userId: user.id, topicId })),
+        skipDuplicates: true,
+      });
+    }
+    return this.findById(user.id);
+  }
+
+  async updateVisibleTopics(userId: string, tenantId: string, topicIds: string[]) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.prisma.userVisibleTopic.deleteMany({ where: { userId } });
+    if (topicIds.length) {
+      await this.prisma.userVisibleTopic.createMany({
+        data: topicIds.map((topicId) => ({ userId, topicId })),
+        skipDuplicates: true,
+      });
+    }
+    return this.findById(userId);
+  }
+
+  async getVisibleTopicIds(userId: string): Promise<string[] | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, visibleTopics: { select: { topicId: true } } },
+    });
+    if (!user) return null;
+    if (user.role === 'owner' || user.role === 'rop') return null;
+    const ids = user.visibleTopics.map((v) => v.topicId);
+    return ids.length ? ids : null;
   }
 }
