@@ -20,6 +20,7 @@ export default function LeadDetailPage() {
   const [handoffError, setHandoffError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +57,20 @@ export default function LeadDetailPage() {
       setHandoffError(message);
     } finally {
       setHandoffLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!lead || !window.confirm('Удалить этого лида? Это действие нельзя отменить.')) return;
+    setDeleting(true);
+    try {
+      await leads.remove(lead.id);
+      router.replace('/leads');
+    } catch (err) {
+      console.error(err);
+      window.alert(err instanceof Error ? err.message : 'Не удалось удалить лида');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -158,9 +173,17 @@ export default function LeadDetailPage() {
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>{lead.phone}</div>
           </div>
         </div>
-        <a href={`tel:${lead.phone}`} style={{ display: 'inline-block', marginBottom: '1rem', padding: '0.5rem 1rem', background: 'var(--success)', color: 'white', borderRadius: 'var(--radius)', textDecoration: 'none', fontWeight: 500 }}>
+        <a href={`tel:${lead.phone}`} style={{ display: 'inline-block', marginBottom: '0.5rem', padding: '0.5rem 1rem', background: 'var(--success)', color: 'white', borderRadius: 'var(--radius)', textDecoration: 'none', fontWeight: 500 }}>
           Позвонить
         </a>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          style={{ display: 'inline-block', marginBottom: '1rem', padding: '0.5rem 1rem', background: 'var(--danger)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 500, cursor: deleting ? 'wait' : 'pointer' }}
+        >
+          {deleting ? 'Удаление…' : 'Удалить лида'}
+        </button>
         <div style={{ marginBottom: '1rem' }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Стадия</div>
           <select

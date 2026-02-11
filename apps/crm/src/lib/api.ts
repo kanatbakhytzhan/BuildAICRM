@@ -78,6 +78,7 @@ export const leads = {
     api<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<{ stageId: string; assignedUserId: string | null; leadScore: string; aiActive: boolean; name: string }>) =>
     api<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => api<void>(`/leads/${id}`, { method: 'DELETE' }),
 };
 
 export const messages = {
