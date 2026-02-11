@@ -101,14 +101,25 @@ export class AiService {
   }
 
   /**
-   * Выбирает этап воронки по типу. Если у лида есть тема (topicId), сначала ищется этап с этой темой,
-   * иначе — этап без привязки к теме. Так ИИ «отправляет» лида в тематический этап (например «Ламинат (new)»),
-   * если он настроен, иначе в общий (например «Новые»).
+   * Первый этап для темы (по порядку) — для тем Ламинат/Линолеум/Погрузчик: лид сразу в колонку темы, не в общие 6 стадий.
+   */
+  private async findFirstStageForTopic(tenantId: string, topicId: string): Promise<{ id: string } | null> {
+    return this.prisma.pipelineStage.findFirst({
+      where: { tenantId, topicId },
+      orderBy: { order: 'asc' },
+      select: { id: true },
+    });
+  }
+
+  /**
+   * Выбирает этап воронки по типу. Если у лида есть тема (topicId), сначала ищется этап с этой темой.
+   * useTopicOnly=true — для Ламинат/Линолеум/Погрузчик: только тематические этапы, общие 6 стадий не трогать.
    */
   private async findStageByType(
     tenantId: string,
     type: string,
     leadTopicId?: string | null,
+    useTopicOnly?: boolean,
   ): Promise<{ id: string } | null> {
     if (leadTopicId) {
       const withTopic = await this.prisma.pipelineStage.findFirst({
@@ -117,6 +128,7 @@ export class AiService {
       });
       if (withTopic) return withTopic;
     }
+    if (useTopicOnly) return null; // Ламинат/Линолеум/Погрузчик — не использовать общие 6 стадий
     const general = await this.prisma.pipelineStage.findFirst({
       where: { tenantId, type, topicId: null },
       select: { id: true },
@@ -374,33 +386,59 @@ export class AiService {
 
     // Определение темы по тексту (ламинат, панели, линолеум, погрузчик и т.д.)
     let newTopicId: string | null = lead.topicId;
+    let newTopicNameNorm: string | null = null; // для «Ламинат/Линолеум/Погрузчик» — только тематические этапы, общие 6 не трогать
     const tenantTopics = await this.prisma.tenantTopic.findMany({
       where: { tenantId },
       orderBy: { sortOrder: 'asc' },
       select: { id: true, name: true },
     });
+    // Ключевые слова для тем (если в названии темы нет точного совпадения с сообщением)
+    const topicKeywords: Record<string, string[]> = {
+      погрузчик: ['погрузчик', 'трактор', 'техника'],
+      трактор: ['погрузчик', 'трактор', 'техника'],
+      ламинат: ['ламинат'],
+      линолеум: ['линолеум'],
+      панел: ['панел', 'сэндвич', 'фасад', 'утеплен', 'дом'],
+    };
+    const DEDICATED_TOPICS = ['ламинат', 'линолеум', 'погрузчик', 'трактор']; // отдельные колонки, общие 6 стадий не трогать
     for (const t of tenantTopics) {
       const nameNorm = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
       if (lowerNorm.includes(nameNorm) || lower.includes(t.name.toLowerCase())) {
         newTopicId = t.id;
+        if (DEDICATED_TOPICS.some((d) => nameNorm.includes(d) || d.includes(nameNorm))) newTopicNameNorm = nameNorm;
+        break;
+      }
+      const keywords = topicKeywords[nameNorm] ?? [nameNorm];
+      if (keywords.some((kw) => lowerNorm.includes(kw) || lower.includes(kw))) {
+        newTopicId = t.id;
+        if (DEDICATED_TOPICS.some((d) => nameNorm.includes(d) || d.includes(nameNorm))) newTopicNameNorm = nameNorm;
         break;
       }
     }
-
+    // Если тема уже у лида и это Ламинат/Линолеум/Погрузчик — тоже только тематические этапы
+    if (newTopicNameNorm == null && (newTopicId ?? lead.topicId) != null) {
+      const tid = newTopicId ?? lead.topicId;
+      const t = tenantTopics.find((x) => x.id === tid);
+      if (t) {
+        const nameNorm = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
+        if (DEDICATED_TOPICS.some((d) => nameNorm.includes(d) || d.includes(nameNorm))) newTopicNameNorm = nameNorm;
+      }
+    }
+    const topicOnly = newTopicNameNorm != null; // Ламинат/Линолеум/Погрузчик — только тематические этапы
     if (lower.includes('не интересно') || lower.includes('отказ') || lower.includes('не актуально')) {
       newScore = 'cold';
       decisionReason = 'клиент явно отказался (\"не интересно\", \"отказ\", \"не актуально\")';
-      const refusedStage = await this.findStageByType(tenantId, 'refused', newTopicId ?? lead.topicId);
+      const refusedStage = await this.findStageByType(tenantId, 'refused', newTopicId ?? lead.topicId, topicOnly);
       if (refusedStage) newStageId = refusedStage.id;
     } else if (meta.suggestedCallAt != null || meta.suggestedCallNote != null || lower.includes('звон') || lower.includes('созвон') || lowerNorm.includes('конырау') || lowerNorm.includes('қоңырау') || lowerNorm.includes('жасайык') || lowerNorm.includes('созвон')) {
       newScore = 'hot';
       decisionReason = meta.suggestedCallAt != null || meta.suggestedCallNote != null ? 'указано время перезвона' : 'клиент хочет созвон';
-      const wantsCall = await this.findStageByType(tenantId, 'wants_call', newTopicId ?? lead.topicId);
+      const wantsCall = await this.findStageByType(tenantId, 'wants_call', newTopicId ?? lead.topicId, topicOnly);
       if (wantsCall) newStageId = wantsCall.id;
     } else if (lower.includes('цена') || lower.includes('стоимость') || lower.includes('сколько')) {
       newScore = 'warm';
       decisionReason = 'клиент уточняет условия/цену';
-      const inProgress = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId);
+      const inProgress = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId, topicOnly);
       if (inProgress) newStageId = inProgress.id;
     } else if (meta.city != null || meta.dimensions != null) {
       newScore = 'warm';
@@ -409,14 +447,23 @@ export class AiService {
         : meta.city != null
           ? 'получен город'
           : 'получены размеры';
-      const inProgress2 = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId);
+      const inProgress2 = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId, topicOnly);
       if (inProgress2) newStageId = inProgress2.id;
     }
     if (meta.city != null && meta.dimensions != null && newScore === 'warm') {
-      const fullData = await this.findStageByType(tenantId, 'full_data', newTopicId ?? lead.topicId);
+      const fullData = await this.findStageByType(tenantId, 'full_data', newTopicId ?? lead.topicId, topicOnly);
       if (fullData) {
         newStageId = fullData.id;
         decisionReason = 'город и размеры получены — полные данные';
+      }
+    }
+    // Ламинат, Линолеум, Погрузчик — сразу в колонку темы (не в общие 6 стадий). Первый этап по теме = колонка.
+    if (newStageId == null && newTopicId != null) {
+      const topicStage = await this.findFirstStageForTopic(tenantId, newTopicId);
+      if (topicStage) {
+        newStageId = topicStage.id;
+        newScore = 'warm';
+        decisionReason = 'определён интерес по продукту — в колонку темы';
       }
     }
 
