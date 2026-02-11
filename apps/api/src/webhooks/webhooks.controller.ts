@@ -10,8 +10,8 @@ function normalizePhone(v: unknown): string {
   return s.replace(/\D/g, '');
 }
 
-/** Результат парсинга: текст, телефон, опционально имя отправителя. */
-type ParsedIncoming = { text: string; phone: string; name?: string };
+/** Результат парсинга: текст, телефон, опционально имя отправителя, опционально идентификатор канала (instance_id). */
+type ParsedIncoming = { text: string; phone: string; name?: string; channelExternalId?: string };
 
 /** Достаёт из тела вебхука ChatFlow/WhatsApp текст сообщения и номер отправителя. */
 function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null {
@@ -119,13 +119,19 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (phone === undefined && ctx?.from !== undefined) phone = String(ctx.from);
   }
 
+  // Идентификатор канала/номера (ChatFlow: instance_id — один webhook на несколько номеров)
+  let channelExternalId: string | undefined;
+  if (typeof body.instance_id === 'string' && body.instance_id.trim()) channelExternalId = body.instance_id.trim();
+  if (metadata?.instance_id !== undefined && typeof metadata.instance_id === 'string') channelExternalId = metadata.instance_id.trim();
+  if (typeof body.channelId === 'string' && body.channelId.trim()) channelExternalId = body.channelId.trim();
+
   const normalizedPhone = phone ? normalizePhone(phone) : '';
   if (!text || text.trim() === '' || normalizedPhone.length < 10) return null;
-  return { text: text.trim(), phone: normalizedPhone, name: name?.trim() || undefined };
+  return { text: text.trim(), phone: normalizedPhone, name: name?.trim() || undefined, channelExternalId };
 }
 
-/** Парсит text и phone из query-параметров (если ChatFlow передаёт данные в URL). */
-function parseFromQuery(query: Record<string, unknown>): { text: string; phone: string } | null {
+/** Парсит text, phone и опционально channelExternalId из query. */
+function parseFromQuery(query: Record<string, unknown>): { text: string; phone: string; channelExternalId?: string } | null {
   const text =
     typeof query.text === 'string' ? query.text :
     typeof query.msg === 'string' ? query.msg :
@@ -137,7 +143,11 @@ function parseFromQuery(query: Record<string, unknown>): { text: string; phone: 
     undefined;
   const phone = phoneRaw ? normalizePhone(phoneRaw) : '';
   if (!text || text.trim() === '' || phone.length < 10) return null;
-  return { text: text.trim(), phone };
+  const channelExternalId =
+    typeof query.instance_id === 'string' ? query.instance_id.trim() :
+    typeof query.channelId === 'string' ? query.channelId.trim() :
+    undefined;
+  return { text: text.trim(), phone, channelExternalId };
 }
 
 @Controller('webhooks/chatflow')
@@ -196,7 +206,8 @@ export class WebhooksController {
 
     let parsed = parseChatFlowBody(body);
     if (!parsed && (Object.keys(query).length > 0)) {
-      parsed = parseFromQuery(query);
+      const q = parseFromQuery(query);
+      if (q) parsed = { text: q.text, phone: q.phone, channelExternalId: q.channelExternalId };
     }
     if (!parsed) {
       const bodyKeys = Object.keys(body);
@@ -214,11 +225,18 @@ export class WebhooksController {
       };
     }
 
-    const { text, phone, name: senderName } = parsed;
+    const { text, phone, name: senderName, channelExternalId } = parsed;
 
-    let lead = await this.prisma.lead.findFirst({
-      where: { tenantId, phone },
+    // Канал: из webhook приходит instance_id (или channelId); если нет — используем "default" (один номер на тенанта).
+    const channel = await this.prisma.tenantChannel.findFirst({
+      where: { tenantId, externalId: channelExternalId || 'default' },
     });
+    const resolvedChannelId = channel?.id ?? null;
+
+    const leadWhere = resolvedChannelId != null
+      ? { tenantId, phone, channelId: resolvedChannelId }
+      : { tenantId, phone };
+    let lead = await this.prisma.lead.findFirst({ where: leadWhere });
     if (!lead) {
       const firstStage = await this.prisma.pipelineStage.findFirst({
         where: { tenantId },
@@ -239,6 +257,7 @@ export class WebhooksController {
           stageId: firstStage.id,
           phone,
           name: senderName || null,
+          channelId: resolvedChannelId,
         },
       });
     } else if (senderName && !lead.name) {
@@ -269,17 +288,24 @@ export class WebhooksController {
       };
     }
 
-    // Отправить ответ в WhatsApp через API ChatFlow (GET send-text), если заданы token и instance_id
+    // Отправить ответ с того же номера (канала): instance_id = канал лида или дефолт из настроек.
     let sentViaChatFlow = false;
     if (reply) {
       const settings = await this.prisma.tenantSettings.findUnique({
         where: { tenantId },
       });
-      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
+      if (lead.channelId) {
+        const ch = await this.prisma.tenantChannel.findUnique({
+          where: { id: lead.channelId },
+        });
+        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
+      }
+      if (settings?.chatflowApiToken && instanceId) {
         const jid = `${phone}@s.whatsapp.net`;
         const url = new URL('https://app.chatflow.kz/api/v1/send-text');
         url.searchParams.set('token', settings.chatflowApiToken);
-        url.searchParams.set('instance_id', settings.chatflowInstanceId);
+        url.searchParams.set('instance_id', instanceId);
         url.searchParams.set('jid', jid);
         url.searchParams.set('msg', reply);
         try {
@@ -335,12 +361,19 @@ export class WebhooksController {
       return { received: true, tenantId, reply: null, debug: { reason: 'parse_failed', queryKeys: Object.keys(query) } };
     }
 
-    const { text, phone } = parsed;
-    let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
+    const { text, phone, channelExternalId } = parsed;
+    const channel = await this.prisma.tenantChannel.findFirst({
+      where: { tenantId, externalId: channelExternalId || 'default' },
+    });
+    const resolvedChannelId = channel?.id ?? null;
+    const leadWhere = resolvedChannelId != null ? { tenantId, phone, channelId: resolvedChannelId } : { tenantId, phone };
+    let lead = await this.prisma.lead.findFirst({ where: leadWhere });
     if (!lead) {
       const firstStage = await this.prisma.pipelineStage.findFirst({ where: { tenantId }, orderBy: { order: 'asc' } });
       if (!firstStage) return { received: true, tenantId, reply: null, debug: { reason: 'no_pipeline_stages' } };
-      lead = await this.prisma.lead.create({ data: { tenantId, stageId: firstStage.id, phone, name: null } });
+      lead = await this.prisma.lead.create({
+        data: { tenantId, stageId: firstStage.id, phone, name: null, channelId: resolvedChannelId },
+      });
     }
 
     let reply: string | null = null;
@@ -356,11 +389,16 @@ export class WebhooksController {
     let sentViaChatFlow = false;
     if (reply) {
       const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
-      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
+      if (lead.channelId) {
+        const ch = await this.prisma.tenantChannel.findUnique({ where: { id: lead.channelId } });
+        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
+      }
+      if (settings?.chatflowApiToken && instanceId) {
         const jid = `${phone}@s.whatsapp.net`;
         const url = new URL('https://app.chatflow.kz/api/v1/send-text');
         url.searchParams.set('token', settings.chatflowApiToken);
-        url.searchParams.set('instance_id', settings.chatflowInstanceId);
+        url.searchParams.set('instance_id', instanceId);
         url.searchParams.set('jid', jid);
         url.searchParams.set('msg', reply);
         try {

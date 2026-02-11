@@ -13,6 +13,8 @@ import { AiModule } from './ai/ai.module';
 import { FollowupsModule } from './followups/followups.module';
 import { HealthModule } from './health/health.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { ChannelsModule } from './channels/channels.module';
+import { TopicsModule } from './topics/topics.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     PipelineModule,
     LeadsModule,
     MessagesModule,
+    ChannelsModule,
+    TopicsModule,
     AdminModule,
     SystemModule,
     AiModule,

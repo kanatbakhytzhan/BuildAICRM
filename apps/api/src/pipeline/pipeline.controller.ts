@@ -11,6 +11,10 @@ class CreateStageDto {
 
   @IsString()
   type: string;
+
+  @IsOptional()
+  @IsString()
+  topicId?: string;
 }
 
 class UpdateStageDto {
@@ -25,6 +29,10 @@ class UpdateStageDto {
   @IsOptional()
   @IsNumber()
   order?: number;
+
+  @IsOptional()
+  @IsString()
+  topicId?: string | null;
 }
 
 @Controller('pipeline')

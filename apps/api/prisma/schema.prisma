@@ -20,6 +20,54 @@ model Tenant {
   settings           TenantSettings?
   followUpTemplates  FollowUpTemplate[]
   systemLogs         SystemLog[]
+  channels           TenantChannel[]
+  topics             TenantTopic[]
+}
+
+// Универсально: у тенанта несколько каналов (WhatsApp-номера). Лид привязан к каналу.
+// externalId = идентификатор из ChatFlow (instance_id и т.п.) — один webhook, в теле передаётся instance_id.
+model TenantChannel {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String   // "Номер 1", "Панели" — для отображения в CRM
+  externalId String   // instance_id или иной ID из webhook ChatFlow; для "дефолтного" канала можно "default"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  Lead[]
+
+  @@unique([tenantId, externalId])
+  @@index([tenantId])
+}
+
+// Универсально: темы/категории лидов настраиваются владельцем (панели, ламинат, линолеум или что угодно).
+model TenantTopic {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads   Lead[]
+  stages  PipelineStage[]
+  visibleToUsers UserVisibleTopic[]
+
+  @@index([tenantId])
+}
+
+// Какой пользователь какие темы видит (пустой список = видит все; для owner/rop можно не заполнять).
+model UserVisibleTopic {
+  userId  String
+  topicId String
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic TenantTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([userId, topicId])
+  @@index([topicId])
 }
 
 model GlobalAdmin {
@@ -89,8 +137,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assignedLeads Lead[] @relation("AssignedLeads")
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedLeads  Lead[]             @relation("AssignedLeads")
+  visibleTopics  UserVisibleTopic[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -102,13 +151,16 @@ model PipelineStage {
   name      String
   order     Int
   type      String   // new, in_progress, wants_call, full_data, success, refused
+  topicId   String?  // если null — этап общий (например Успех/Отказ)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  topic  TenantTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
   leads  Lead[]
 
   @@index([tenantId])
+  @@index([topicId])
 }
 
 enum LeadScore {
@@ -120,7 +172,9 @@ enum LeadScore {
 model Lead {
   id             String    @id @default(cuid())
   tenantId       String
+  channelId      String?   // с какого номера WhatsApp написали; null = старые лиды (миграция подставит default)
   stageId        String
+  topicId        String?   // тема/категория (определяется по диалогу)
   assignedUserId String?
   leadScore      LeadScore @default(cold)
   aiActive       Boolean   @default(true)
@@ -134,15 +188,20 @@ model Lead {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  stage    PipelineStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  assignedUser User?     @relation("AssignedLeads", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channel  TenantChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  stage    PipelineStage  @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  topic    TenantTopic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  assignedUser User?      @relation("AssignedLeads", fields: [assignedUserId], references: [id], onDelete: SetNull)
   messages Message[]
 
   @@index([tenantId])
+  @@index([channelId])
   @@index([stageId])
+  @@index([topicId])
   @@index([assignedUserId])
   @@index([tenantId, lastMessageAt])
+  @@index([tenantId, phone, channelId])
 }
 
 enum MessageSource {

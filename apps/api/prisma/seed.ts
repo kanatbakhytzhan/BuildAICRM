@@ -3,6 +3,24 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+const DEFAULT_CHANNEL_EXTERNAL_ID = 'default';
+
+/** Создаёт канал "Основной" для тенанта (если нет) и привязывает лидов без channelId. */
+async function ensureDefaultChannelForTenant(tenantId: string) {
+  let ch = await prisma.tenantChannel.findFirst({
+    where: { tenantId, externalId: DEFAULT_CHANNEL_EXTERNAL_ID },
+  });
+  if (!ch) {
+    ch = await prisma.tenantChannel.create({
+      data: { tenantId, name: 'Основной', externalId: DEFAULT_CHANNEL_EXTERNAL_ID },
+    });
+  }
+  await prisma.lead.updateMany({
+    where: { tenantId, channelId: null },
+    data: { channelId: ch.id },
+  });
+}
+
 async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { id: 'seed-tenant-1' },
@@ -12,6 +30,8 @@ async function main() {
       name: 'Demo Company',
     },
   });
+
+  await ensureDefaultChannelForTenant(tenant.id);
 
   const passwordHash = await bcrypt.hash('demo123', 10);
   await prisma.user.upsert({
@@ -56,6 +76,12 @@ async function main() {
       name: 'Global Admin',
     },
   });
+
+  // Backfill: для всех остальных тенантов — канал по умолчанию и привязка лидов
+  const tenants = await prisma.tenant.findMany({ select: { id: true } });
+  for (const t of tenants) {
+    await ensureDefaultChannelForTenant(t.id);
+  }
 
   console.log('Seed done. Tenant:', tenant.id, 'CRM: owner@demo.com / demo123');
   console.log('Global Admin: admin@buildcrm.io / admin123');

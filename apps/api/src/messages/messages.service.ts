@@ -58,7 +58,7 @@ export class MessagesService {
       },
     });
 
-    // Отправить исходящее сообщение менеджера в WhatsApp через ChatFlow
+    // Отправить исходящее с того же номера (канала), что и лид
     if (
       data.direction === MessageDirection.out &&
       data.body?.trim() &&
@@ -67,13 +67,20 @@ export class MessagesService {
       const settings = await this.prisma.tenantSettings.findUnique({
         where: { tenantId },
       });
-      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
+      if (lead.channelId) {
+        const ch = await this.prisma.tenantChannel.findUnique({
+          where: { id: lead.channelId },
+        });
+        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
+      }
+      if (settings?.chatflowApiToken && instanceId) {
         const phone = String(lead.phone).replace(/\D/g, '');
         if (phone.length >= 10) {
           const jid = `${phone}@s.whatsapp.net`;
           const url = new URL('https://app.chatflow.kz/api/v1/send-text');
           url.searchParams.set('token', settings.chatflowApiToken);
-          url.searchParams.set('instance_id', settings.chatflowInstanceId);
+          url.searchParams.set('instance_id', instanceId);
           url.searchParams.set('jid', jid);
           url.searchParams.set('msg', data.body.trim());
           try {

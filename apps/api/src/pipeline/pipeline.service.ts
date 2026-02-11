@@ -9,7 +9,7 @@ export class PipelineService {
     return this.prisma.pipelineStage.findMany({
       where: { tenantId },
       orderBy: { order: 'asc' },
-      include: { _count: { select: { leads: true } } },
+      include: { topic: { select: { id: true, name: true } }, _count: { select: { leads: true } } },
     });
   }
 
@@ -21,18 +21,18 @@ export class PipelineService {
     return stage;
   }
 
-  async create(tenantId: string, data: { name: string; type: string }) {
+  async create(tenantId: string, data: { name: string; type: string; topicId?: string }) {
     const max = await this.prisma.pipelineStage.aggregate({
       where: { tenantId },
       _max: { order: true },
     });
     const order = (max._max.order ?? -1) + 1;
     return this.prisma.pipelineStage.create({
-      data: { tenantId, name: data.name, type: data.type, order },
+      data: { tenantId, name: data.name, type: data.type, order, topicId: data.topicId ?? undefined },
     });
   }
 
-  async update(tenantId: string, id: string, data: { name?: string; type?: string; order?: number }) {
+  async update(tenantId: string, id: string, data: { name?: string; type?: string; order?: number; topicId?: string | null }) {
     await this.findOne(tenantId, id);
     return this.prisma.pipelineStage.update({
       where: { id },

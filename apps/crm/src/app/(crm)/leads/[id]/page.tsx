@@ -276,6 +276,18 @@ export default function LeadDetailPage() {
           <span style={{ color: 'var(--text-muted)' }}>Ведёт: </span>
           {lead.aiActive ? 'AI' : lead.assignedUser?.name || lead.assignedUser?.email || '—'}
         </div>
+        {lead.channel && (
+          <div style={{ fontSize: 14, marginBottom: 4 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Пишет на номер: </span>
+            {lead.channel.name}
+          </div>
+        )}
+        {lead.topic && (
+          <div style={{ fontSize: 14, marginBottom: 4 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Тема: </span>
+            {lead.topic.name}
+          </div>
+        )}
         {lead.aiNotes && (
           <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: 13 }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Решения AI</div>

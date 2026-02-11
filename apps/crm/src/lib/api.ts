@@ -26,10 +26,14 @@ export async function api<T>(
 
 export type Tenant = { id: string; name: string };
 export type User = { id: string; email: string; name: string | null; tenantId: string; role: string };
-export type Stage = { id: string; name: string; type: string; order: number; _count?: { leads: number } };
+export type Stage = { id: string; name: string; type: string; order: number; topicId?: string | null; topic?: { id: string; name: string } | null; _count?: { leads: number } };
+export type Channel = { id: string; name: string; externalId: string };
+export type Topic = { id: string; name: string; sortOrder: number };
 export type Lead = {
   id: string;
   stageId: string;
+  channelId?: string | null;
+  topicId?: string | null;
   phone: string;
   name: string | null;
   leadScore: string;
@@ -41,6 +45,8 @@ export type Lead = {
   metadata?: Record<string, unknown> | null;
   stage: { id: string; name: string; type: string };
   assignedUser?: { id: string; name: string | null; email: string } | null;
+  channel?: Channel | null;
+  topic?: Topic | null;
 };
 export type Message = { id: string; source: string; direction: string; body: string | null; createdAt: string };
 
@@ -65,6 +71,14 @@ export const users = {
 
 export const pipeline = {
   list: () => api<Stage[]>('/pipeline'),
+};
+
+export const channels = {
+  list: () => api<Channel[]>('/channels'),
+};
+
+export const topics = {
+  list: () => api<Topic[]>('/topics'),
 };
 
 export const leads = {

@@ -25,6 +25,8 @@ export class LeadsService {
       include: {
         stage: { select: { id: true, name: true, type: true, order: true } },
         assignedUser: { select: { id: true, name: true, email: true } },
+        channel: { select: { id: true, name: true, externalId: true } },
+        topic: { select: { id: true, name: true } },
       },
       orderBy: [{ leadScore: 'desc' }, { lastMessageAt: 'desc' }, { createdAt: 'desc' }],
     });
@@ -36,6 +38,8 @@ export class LeadsService {
       include: {
         stage: true,
         assignedUser: { select: { id: true, name: true, email: true } },
+        channel: { select: { id: true, name: true, externalId: true } },
+        topic: { select: { id: true, name: true } },
       },
     });
     if (!lead) throw new NotFoundException('Lead not found');
