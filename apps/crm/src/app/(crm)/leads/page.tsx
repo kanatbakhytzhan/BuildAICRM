@@ -91,10 +91,20 @@ export default function LeadsPage() {
       )
     : leadsList;
 
-  const leadsByStage = stages.map((stage) => ({
-    ...stage,
-    leads: filtered.filter((l) => l.stageId === stage.id),
-  }));
+  const leadsByStage = stages.map((stage) => {
+    const stageLeads = filtered.filter((l) => l.stageId === stage.id);
+    const sorted =
+      stage.type === 'wants_call'
+        ? [...stageLeads].sort((a, b) => {
+            const atA = (a.metadata as Record<string, unknown> | null)?.suggestedCallAt;
+            const atB = (b.metadata as Record<string, unknown> | null)?.suggestedCallAt;
+            const timeA = atA ? new Date(String(atA)).getTime() : Infinity;
+            const timeB = atB ? new Date(String(atB)).getTime() : Infinity;
+            return timeA - timeB;
+          })
+        : stageLeads;
+    return { ...stage, leads: sorted };
+  });
 
   const moveLeadToStage = useCallback((leadId: string, targetStageId: string, col: { id: string; name: string; type: string }) => {
     const lead = leadsList.find((l) => l.id === leadId);

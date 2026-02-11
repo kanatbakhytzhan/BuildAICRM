@@ -99,14 +99,14 @@ export class AiService {
     return this.mergeMetadata(current, patch);
   }
 
-  /** Парсит из текста указание «когда перезвонить» и возвращает ISO-дату и подпись. */
+  /** Парсит из текста указание «когда перезвонить» и возвращает ISO-дату и подпись. Всегда пишем в БД точное время. */
   private parseSuggestedCallTime(text: string): { at: string; note: string } | null {
     const lower = text.toLowerCase().trim();
     const now = new Date();
     let at: Date | null = null;
     let note = '';
 
-    // через полчаса / пол часа / жарты сагат / жарт сагат кейн / бугин жарт сагат кейн
+    // через полчаса / пол часа / жарты сагат
     if (
       /(через\s+)?(полчаса|пол\s+часа|жарты?\s+сагат|сагат\s+кейн|полчаса\s+кейн)/.test(lower) ||
       /бугин\s+жарт\s+сагат/.test(lower)
@@ -114,13 +114,24 @@ export class AiService {
       at = new Date(now.getTime() + 30 * 60 * 1000);
       note = 'Через 30 мин';
     }
-    // через час / через 1 час
-    else if (/(через\s+)?(1\s+)?час[ау]?(\s+кейн)?/.test(lower) && !lower.includes('полчаса') && !lower.includes('жарты')) {
+    // через N часов (2 часа, через 3 часа)
+    else if (!at) {
+      const hoursMatch = lower.match(/через\s+(\d+)\s*час/);
+      if (hoursMatch) {
+        const h = Number(hoursMatch[1]);
+        if (!Number.isNaN(h) && h >= 1 && h <= 24) {
+          at = new Date(now.getTime() + h * 60 * 60 * 1000);
+          note = h === 1 ? 'Через 1 час' : `Через ${h} ч`;
+        }
+      }
+    }
+    // через час / через 1 час (если не поймали выше)
+    if (!at && /(через\s+)?(1\s+)?час[ау]?(\s+кейн)?/.test(lower) && !lower.includes('полчаса') && !lower.includes('жарты')) {
       at = new Date(now.getTime() + 60 * 60 * 1000);
       note = 'Через 1 час';
     }
     // через N минут
-    else {
+    if (!at) {
       const minsMatch = lower.match(/через\s+(\d+)\s*м(ин|инут)/);
       if (minsMatch) {
         const m = Number(minsMatch[1]);
@@ -142,6 +153,21 @@ export class AiService {
           tomorrow.setHours(h, Number.isNaN(min) ? 0 : min, 0, 0);
           at = tomorrow;
           note = `Завтра в ${h}:${String(min).padStart(2, '0')}`;
+        }
+      }
+    }
+    // сегодня в 18:00 / в 15:00 / в 14:30 (время на сегодня)
+    if (!at && /(сегодня\s+)?в\s+(\d{1,2})(?::(\d{2}))?/.test(lower)) {
+      const timeMatch = lower.match(/(?:сегодня\s+)?в\s+(\d{1,2})(?::(\d{2}))?/);
+      if (timeMatch) {
+        const h = Number(timeMatch[1]);
+        const min = timeMatch[2] ? Number(timeMatch[2]) : 0;
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
+          const today = new Date(now);
+          today.setHours(h, Number.isNaN(min) ? 0 : min, 0, 0);
+          if (today.getTime() <= now.getTime()) today.setDate(today.getDate() + 1);
+          at = today;
+          note = `В ${h}:${String(min).padStart(2, '0')}`;
         }
       }
     }
