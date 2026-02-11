@@ -50,12 +50,12 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     }
   }
 
-  // Вариант: message.text, message.from или from в корне
-  const msg = body.message as Record<string, unknown> | undefined;
+  // Ещё раз message / from в корне (если не вытащили выше)
   if (msg && typeof msg === 'object') {
     if (text === undefined) text = typeof msg.text === 'string' ? msg.text : (msg.body as string);
     if (phone === undefined) phone = (msg.from ?? body.from) as string | undefined;
   }
+  if (phone === undefined && body.from !== undefined) phone = String(body.from);
   // Вложенные обёртки: data, payload (часто у конструкторов ботов)
   const data = body.data as Record<string, unknown> | undefined;
   const payload = body.payload as Record<string, unknown> | undefined;

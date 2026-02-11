@@ -36,7 +36,7 @@ export default function ClientWhatsAppPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload: Record<string, string> = {};
+      const payload: Record<string, string | null> = {};
       if (form.instanceId) payload.chatflowInstanceId = form.instanceId;
       if (form.apiToken && form.apiToken !== '••••••••') payload.chatflowApiToken = form.apiToken;
       if (form.webhookUrl) payload.webhookUrl = form.webhookUrl;
