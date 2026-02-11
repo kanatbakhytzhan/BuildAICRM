@@ -208,6 +208,21 @@ export class AiService {
         }
       }
     }
+    // казах: ертен сагат 10:30 / ертен 10:30 / ертен в 10 (завтра)
+    if (!at && /ертен\s*(сагат\s*)?(\d{1,2})(?::(\d{2}))?/.test(lower)) {
+      const ertenMatch = lower.match(/ертен\s*(?:сагат\s*)?(\d{1,2})(?::(\d{2}))?/);
+      if (ertenMatch) {
+        const h = Number(ertenMatch[1]);
+        const min = ertenMatch[2] ? Number(ertenMatch[2]) : 0;
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(h, min, 0, 0);
+          at = tomorrow;
+          note = `Ертен ${h}:${String(min).padStart(2, '0')}`;
+        }
+      }
+    }
     // сегодня в 18:00 / в 15:00 / в 14:30 (время на сегодня)
     if (!at && /(сегодня\s+)?в\s+(\d{1,2})(?::(\d{2}))?/.test(lower)) {
       const timeMatch = lower.match(/(?:сегодня\s+)?в\s+(\d{1,2})(?::(\d{2}))?/);
@@ -354,20 +369,38 @@ export class AiService {
     const meta = (newMetadata && typeof newMetadata === 'object' ? newMetadata : {}) as Record<string, unknown>;
 
     const lower = text.toLowerCase();
+    // Нормализация казахских букв для поиска (ә→а, ң→н и т.д.)
+    const lowerNorm = lower.replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
+
+    // Определение темы по тексту (ламинат, панели, линолеум, погрузчик и т.д.)
+    let newTopicId: string | null = lead.topicId;
+    const tenantTopics = await this.prisma.tenantTopic.findMany({
+      where: { tenantId },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true },
+    });
+    for (const t of tenantTopics) {
+      const nameNorm = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
+      if (lowerNorm.includes(nameNorm) || lower.includes(t.name.toLowerCase())) {
+        newTopicId = t.id;
+        break;
+      }
+    }
+
     if (lower.includes('не интересно') || lower.includes('отказ') || lower.includes('не актуально')) {
       newScore = 'cold';
       decisionReason = 'клиент явно отказался (\"не интересно\", \"отказ\", \"не актуально\")';
-      const refusedStage = await this.findStageByType(tenantId, 'refused', lead.topicId);
+      const refusedStage = await this.findStageByType(tenantId, 'refused', newTopicId ?? lead.topicId);
       if (refusedStage) newStageId = refusedStage.id;
-    } else if (meta.suggestedCallAt != null || meta.suggestedCallNote != null || lower.includes('звон') || lower.includes('созвон')) {
+    } else if (meta.suggestedCallAt != null || meta.suggestedCallNote != null || lower.includes('звон') || lower.includes('созвон') || lowerNorm.includes('конырау') || lowerNorm.includes('қоңырау') || lowerNorm.includes('жасайык') || lowerNorm.includes('созвон')) {
       newScore = 'hot';
-      decisionReason = meta.suggestedCallAt != null ? 'указано время перезвона' : 'клиент хочет созвон';
-      const wantsCall = await this.findStageByType(tenantId, 'wants_call', lead.topicId);
+      decisionReason = meta.suggestedCallAt != null || meta.suggestedCallNote != null ? 'указано время перезвона' : 'клиент хочет созвон';
+      const wantsCall = await this.findStageByType(tenantId, 'wants_call', newTopicId ?? lead.topicId);
       if (wantsCall) newStageId = wantsCall.id;
     } else if (lower.includes('цена') || lower.includes('стоимость') || lower.includes('сколько')) {
       newScore = 'warm';
       decisionReason = 'клиент уточняет условия/цену';
-      const inProgress = await this.findStageByType(tenantId, 'in_progress', lead.topicId);
+      const inProgress = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId);
       if (inProgress) newStageId = inProgress.id;
     } else if (meta.city != null || meta.dimensions != null) {
       newScore = 'warm';
@@ -376,11 +409,11 @@ export class AiService {
         : meta.city != null
           ? 'получен город'
           : 'получены размеры';
-      const inProgress2 = await this.findStageByType(tenantId, 'in_progress', lead.topicId);
+      const inProgress2 = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId);
       if (inProgress2) newStageId = inProgress2.id;
     }
     if (meta.city != null && meta.dimensions != null && newScore === 'warm') {
-      const fullData = await this.findStageByType(tenantId, 'full_data', lead.topicId);
+      const fullData = await this.findStageByType(tenantId, 'full_data', newTopicId ?? lead.topicId);
       if (fullData) {
         newStageId = fullData.id;
         decisionReason = 'город и размеры получены — полные данные';
@@ -404,6 +437,7 @@ export class AiService {
       data: {
         leadScore: newScore,
         stageId: newStageId ?? lead.stageId,
+        topicId: newTopicId ?? lead.topicId,
         lastMessageAt: now,
         lastMessagePreview: text.slice(0, 120),
         noResponseSince: null,
