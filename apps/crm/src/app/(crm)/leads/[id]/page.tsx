@@ -306,14 +306,34 @@ export default function LeadDetailPage() {
             </div>
           </div>
         ) : null}
-        {lead.metadata && typeof lead.metadata === 'object' && Object.keys(lead.metadata).length > 0 && (
-          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Данные</div>
-            <pre style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap', background: 'var(--bg)', padding: '0.5rem', borderRadius: 'var(--radius)' }}>
-              {JSON.stringify(lead.metadata, null, 2)}
-            </pre>
-          </div>
-        )}
+        {lead.metadata && typeof lead.metadata === 'object' && Object.keys(lead.metadata).length > 0 && (() => {
+          const m = lead.metadata as Record<string, unknown>;
+          const items: { label: string; value: string }[] = [];
+          if (m.city != null) items.push({ label: 'Город', value: String(m.city) });
+          if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
+            const d = m.dimensions as { length?: number; width?: number };
+            if (d.length != null && d.width != null) items.push({ label: 'Размеры', value: `${d.length} × ${d.width} м` });
+          }
+          if (m.foundation != null) items.push({ label: 'Фундамент', value: String(m.foundation) });
+          if (m.windowsCount != null) items.push({ label: 'Окон', value: String(m.windowsCount) });
+          if (m.doorsCount != null) items.push({ label: 'Дверей', value: String(m.doorsCount) });
+          if (m.suggestedCallNote != null) items.push({ label: 'Перезвонить', value: String(m.suggestedCallNote) });
+          else if (m.suggestedCallAt != null) items.push({ label: 'Перезвонить', value: new Date(String(m.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) });
+          if (items.length === 0) return null;
+          return (
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Данные</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {items.map(({ label, value }) => (
+                  <div key={label} style={{ fontSize: 14, display: 'flex', gap: 8 }}>
+                    <span style={{ color: 'var(--text-muted)', minWidth: 90 }}>{label}:</span>
+                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="lead-detail-chat">
@@ -396,7 +416,7 @@ export default function LeadDetailPage() {
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                       {new Date(m.createdAt).toLocaleString('ru-RU')} ·{' '}
-                      {m.source === 'ai' ? 'AI' : 'Менеджер'}
+                      {m.direction === 'in' ? 'Клиент' : m.source === 'ai' ? 'AI' : 'Менеджер'}
                     </div>
                   </div>
                 ))}

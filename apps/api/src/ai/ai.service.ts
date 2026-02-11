@@ -150,22 +150,41 @@ export class AiService {
     return { at: at.toISOString(), note };
   }
 
+  private formatMetadataForPrompt(metadata: Prisma.JsonValue | null): string {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return '';
+    const m = metadata as Record<string, unknown>;
+    const parts: string[] = [];
+    if (m.city != null) parts.push(`Город: ${String(m.city)}`);
+    if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
+      const d = m.dimensions as { length?: number; width?: number };
+      if (d.length != null && d.width != null) parts.push(`Размеры (длина x ширина): ${d.length} x ${d.width}`);
+    }
+    if (m.foundation != null) parts.push(`Фундамент: ${String(m.foundation)}`);
+    if (m.windowsCount != null) parts.push(`Окон: ${Number(m.windowsCount)}`);
+    if (m.doorsCount != null) parts.push(`Дверей: ${Number(m.doorsCount)}`);
+    if (m.suggestedCallAt != null || m.suggestedCallNote != null) {
+      parts.push(`Перезвонить: ${m.suggestedCallNote != null ? String(m.suggestedCallNote) : new Date(String(m.suggestedCallAt)).toLocaleString('ru-RU')}`);
+    }
+    if (parts.length === 0) return '';
+    return `\n\nУже известные данные по клиенту (не спрашивай их повторно, опирайся на них): ${parts.join('. ')}.`;
+  }
+
   private async generateOpenAIReply(params: {
     leadId: string;
     systemPrompt: string | null;
     openaiApiKey: string;
     currentUserMessage: string;
+    leadMetadata?: Prisma.JsonValue | null;
   }): Promise<string> {
     const recent = await this.prisma.message.findMany({
       where: { leadId: params.leadId },
       orderBy: { createdAt: 'asc' },
       take: 30,
     });
+    const contextBlock = this.formatMetadataForPrompt(params.leadMetadata ?? null);
+    const systemContent = (params.systemPrompt?.trim() || 'Ты вежливый AI-ассистент компании. Отвечай кратко и по делу. Общайся на том же языке, что и клиент.') + contextBlock;
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: params.systemPrompt?.trim() || 'Ты вежливый AI-ассистент компании. Отвечай кратко и по делу. Общайся на том же языке, что и клиент.',
-      },
+      { role: 'system', content: systemContent },
       ...recent.map((m) => ({
         role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
         content: m.body || '',
@@ -231,6 +250,9 @@ export class AiService {
     let newStageId: string | undefined;
     let decisionReason = 'сообщение не попало ни под одно правило';
 
+    const newMetadata = this.extractMetadataFromText(lead.metadata ?? null, text);
+    const meta = (newMetadata && typeof newMetadata === 'object' ? newMetadata : {}) as Record<string, unknown>;
+
     const lower = text.toLowerCase();
     if (lower.includes('не интересно') || lower.includes('отказ') || lower.includes('не актуально')) {
       newScore = 'cold';
@@ -239,20 +261,40 @@ export class AiService {
         where: { tenantId, type: 'refused' },
       });
       if (refusedStage) newStageId = refusedStage.id;
-    } else if (lower.includes('цена') || lower.includes('стоимость') || lower.includes('сколько')) {
-      newScore = 'warm';
-      decisionReason = 'клиент уточняет условия/цену (\"цена\", \"стоимость\", \"сколько\")';
-      const inProgress = await this.prisma.pipelineStage.findFirst({
-        where: { tenantId, type: 'in_progress' },
-      });
-      if (inProgress) newStageId = inProgress.id;
-    } else if (lower.includes('звон') || lower.includes('созвон')) {
+    } else if (meta.suggestedCallAt != null || meta.suggestedCallNote != null || lower.includes('звон') || lower.includes('созвон')) {
       newScore = 'hot';
-      decisionReason = 'клиент хочет созвон (\"звонок\", \"созвон\")';
+      decisionReason = meta.suggestedCallAt != null ? 'указано время перезвона' : 'клиент хочет созвон';
       const wantsCall = await this.prisma.pipelineStage.findFirst({
         where: { tenantId, type: 'wants_call' },
       });
       if (wantsCall) newStageId = wantsCall.id;
+    } else if (lower.includes('цена') || lower.includes('стоимость') || lower.includes('сколько')) {
+      newScore = 'warm';
+      decisionReason = 'клиент уточняет условия/цену';
+      const inProgress = await this.prisma.pipelineStage.findFirst({
+        where: { tenantId, type: 'in_progress' },
+      });
+      if (inProgress) newStageId = inProgress.id;
+    } else if (meta.city != null || meta.dimensions != null) {
+      newScore = 'warm';
+      decisionReason = meta.city != null && meta.dimensions != null
+        ? 'получены город и размеры'
+        : meta.city != null
+          ? 'получен город'
+          : 'получены размеры';
+      const inProgress = await this.prisma.pipelineStage.findFirst({
+        where: { tenantId, type: 'in_progress' },
+      });
+      if (inProgress) newStageId = inProgress.id;
+    }
+    if (meta.city != null && meta.dimensions != null && newScore === 'warm') {
+      const fullData = await this.prisma.pipelineStage.findFirst({
+        where: { tenantId, type: 'full_data' },
+      });
+      if (fullData) {
+        newStageId = fullData.id;
+        decisionReason = 'город и размеры получены — полные данные';
+      }
     }
 
     const effectiveStageId = newStageId ?? lead.stageId;
@@ -266,8 +308,6 @@ export class AiService {
     const stageName = stageForNotes && 'name' in stageForNotes ? stageForNotes.name : 'текущая';
     const scoreLabel = newScore === 'hot' ? 'горячий' : newScore === 'warm' ? 'тёплый' : 'холодный';
     const aiNotes = `Оценка: ${scoreLabel}. Стадия: ${stageName}. ${decisionReason}`;
-
-    const newMetadata = this.extractMetadataFromText(lead.metadata ?? null, text);
 
     const updatedLead = await this.prisma.lead.update({
       where: { id: lead.id },
@@ -325,6 +365,7 @@ export class AiService {
           systemPrompt: settings.systemPrompt,
           openaiApiKey: settings.openaiApiKey,
           currentUserMessage: text,
+          leadMetadata: updatedLead.metadata,
         });
       } catch (err) {
         await this.logs.log({
