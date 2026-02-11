@@ -11,7 +11,7 @@ export default function ClientWhatsAppPage() {
   const id = params.id as string;
   const [tenant, setTenant] = useState<{ name: string } | null>(null);
   const [settings, setSettings] = useState<TenantSettings | null>(null);
-  const [form, setForm] = useState({ instanceId: '', apiToken: '', webhookUrl: '' });
+  const [form, setForm] = useState({ instanceId: '', apiToken: '', webhookUrl: '', webhookKey: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -25,6 +25,7 @@ export default function ClientWhatsAppPage() {
           instanceId: s.chatflowInstanceId || '',
           apiToken: s.chatflowApiToken ? '••••••••' : '',
           webhookUrl: s.webhookUrl || '',
+          webhookKey: s.webhookKey || '',
         });
       })
       .catch(console.error)
@@ -39,6 +40,7 @@ export default function ClientWhatsAppPage() {
       if (form.instanceId) payload.chatflowInstanceId = form.instanceId;
       if (form.apiToken && form.apiToken !== '••••••••') payload.chatflowApiToken = form.apiToken;
       if (form.webhookUrl) payload.webhookUrl = form.webhookUrl;
+      if (form.webhookKey !== undefined) payload.webhookKey = form.webhookKey || null;
       await api.updateSettings(id, payload);
       const s = await api.getSettings(id);
       setSettings(s);
@@ -103,6 +105,19 @@ export default function ClientWhatsAppPage() {
                 style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
               />
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}> Нажмите на глаз, чтобы показать.</span>
+            </label>
+            <label style={{ display: 'block', marginBottom: '1rem' }}>
+              <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Webhook Key (опционально)</span>
+              <input
+                type="text"
+                value={form.webhookKey}
+                onChange={(e) => setForm((f) => ({ ...f, webhookKey: e.target.value }))}
+                placeholder="Секретный ключ для входа по ?key=..."
+                style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+              />
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                Если задан — в ChatFlow можно указать URL: <code style={{ background: 'var(--sidebar-bg)', padding: '2px 4px', borderRadius: 4 }}>{apiBase ? `${apiBase.replace(/\/$/, '')}/webhooks/chatflow?key=ВАШ_КЛЮЧ` : '.../webhooks/chatflow?key=...'}</code>
+              </div>
             </label>
             <label style={{ display: 'block', marginBottom: '1rem' }}>
               <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Webhook URL (для входящих)</span>

@@ -39,6 +39,7 @@ model TenantSettings {
   chatflowInstanceId String?
   chatflowApiToken  String?
   webhookUrl        String?
+  webhookKey        String?  @unique // ключ для входа по ?key= (как у тебя было: tenant.webhook_key)
   systemPrompt     String?   @db.Text
   respondFirst     Boolean  @default(true)
   suggestCall      Boolean  @default(true)

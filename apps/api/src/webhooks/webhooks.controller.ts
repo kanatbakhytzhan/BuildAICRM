@@ -10,10 +10,28 @@ function normalizePhone(v: unknown): string {
   return s.replace(/\D/g, '');
 }
 
+/** Результат парсинга: текст, телефон, опционально имя отправителя. */
+type ParsedIncoming = { text: string; phone: string; name?: string };
+
 /** Достаёт из тела вебхука ChatFlow/WhatsApp текст сообщения и номер отправителя. */
-function parseChatFlowBody(body: Record<string, unknown>): { text: string; phone: string } | null {
+function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null {
   let text: string | undefined;
   let phone: string | undefined;
+  let name: string | undefined;
+
+  // Формат ChatFlow (как у тебя было): sender.id, sender.name, message.text / message.caption
+  const sender = body.sender as Record<string, unknown> | undefined;
+  if (sender && typeof sender === 'object') {
+    if (sender.id !== undefined) phone = String(sender.id);
+    if (typeof sender.name === 'string') name = sender.name;
+  }
+  const msg = body.message as Record<string, unknown> | undefined;
+  if (msg && typeof msg === 'object') {
+    if (text === undefined && typeof msg.text === 'string') text = msg.text;
+    if (text === undefined && typeof msg.caption === 'string') text = msg.caption;
+    if (text === undefined && msg.body !== undefined) text = String(msg.body);
+    if (phone === undefined && msg.from !== undefined) phone = String(msg.from);
+  }
 
   // Формат Meta WhatsApp Cloud API: entry[0].changes[0].value.messages[0]
   const entry = body.entry as Array<Record<string, unknown>> | undefined;
@@ -85,7 +103,7 @@ function parseChatFlowBody(body: Record<string, unknown>): { text: string; phone
 
   const normalizedPhone = phone ? normalizePhone(phone) : '';
   if (!text || text.trim() === '' || normalizedPhone.length < 10) return null;
-  return { text: text.trim(), phone: normalizedPhone };
+  return { text: text.trim(), phone: normalizedPhone, name: name?.trim() || undefined };
 }
 
 /** Парсит text и phone из query-параметров (если ChatFlow передаёт данные в URL). */
@@ -112,6 +130,25 @@ export class WebhooksController {
     private ai: AiService,
   ) {}
 
+  /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
+  @Post()
+  async chatflowByKey(
+    @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
+  ) {
+    const key = query.key;
+    if (typeof key !== 'string' || !key.trim()) {
+      return { received: false, error: 'Missing key' };
+    }
+    const settings = await this.prisma.tenantSettings.findFirst({
+      where: { webhookKey: key.trim() },
+    });
+    if (!settings) {
+      return { received: false, error: 'Tenant not found' };
+    }
+    return this.handleChatflow(settings.tenantId, body, query);
+  }
+
   @Post(':tenantId')
   async chatflow(
     @Param('tenantId') tenantId: string,
@@ -124,7 +161,14 @@ export class WebhooksController {
     if (!tenant) {
       return { received: false, error: 'Tenant not found' };
     }
+    return this.handleChatflow(tenantId, body, query);
+  }
 
+  private async handleChatflow(
+    tenantId: string,
+    body: Record<string, unknown>,
+    query: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     await this.logs.log({
       tenantId,
       category: 'whatsapp',
@@ -152,7 +196,7 @@ export class WebhooksController {
       };
     }
 
-    const { text, phone } = parsed;
+    const { text, phone, name: senderName } = parsed;
 
     let lead = await this.prisma.lead.findFirst({
       where: { tenantId, phone },
@@ -176,9 +220,11 @@ export class WebhooksController {
           tenantId,
           stageId: firstStage.id,
           phone,
-          name: null,
+          name: senderName || null,
         },
       });
+    } else if (senderName && !lead.name) {
+      await this.prisma.lead.update({ where: { id: lead.id }, data: { name: senderName } });
     }
 
     let reply: string | null = null;
@@ -244,7 +290,7 @@ export class WebhooksController {
     return { received: true, tenantId, reply, sentViaChatFlow };
   }
 
-  /** Тот же сценарий по GET с параметрами в URL (text/msg + from/phone/jid). */
+  /** GET с параметрами в URL (text/msg + from/phone/jid). */
   @Get(':tenantId')
   async chatflowGet(
     @Param('tenantId') tenantId: string,

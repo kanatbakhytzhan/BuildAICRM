@@ -54,7 +54,7 @@ export class AdminTenantsService {
   async updateSettings(tenantId: string, data: Record<string, unknown>) {
     await this.findOne(tenantId);
     const allowed = [
-      'aiEnabled', 'openaiApiKey', 'chatflowInstanceId', 'chatflowApiToken', 'webhookUrl',
+      'aiEnabled', 'openaiApiKey', 'chatflowInstanceId', 'chatflowApiToken', 'webhookUrl', 'webhookKey',
       'systemPrompt', 'respondFirst', 'suggestCall', 'askQuestions',
       'nightModeEnabled', 'nightModeStart', 'nightModeEnd', 'nightModeMessage',
       'followUpEnabled', 'followUpDelay', 'followUpMessage',

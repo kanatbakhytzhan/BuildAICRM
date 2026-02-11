@@ -103,6 +103,7 @@ export type TenantSettings = {
   chatflowInstanceId: string | null;
   chatflowApiToken: string | null;
   webhookUrl: string | null;
+  webhookKey: string | null;
   systemPrompt: string | null;
   respondFirst: boolean;
   suggestCall: boolean;

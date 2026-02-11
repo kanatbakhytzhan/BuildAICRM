@@ -52,7 +52,15 @@
 | **Headers** | `Content-Type: application/json` (если конструктор не ставит сам). |
 | **Тело (Body)** | JSON с текстом сообщения и номером отправителя. |
 
-**Важно:** BuildCRM умеет читать данные из **body** (JSON) или из **query-параметров URL**. Если тело пустое, поддерживаются `?text=...` или `?msg=...` и `?from=...` или `?phone=...` или `?jid=...`. Поддерживается и **GET** на тот же URL с query (удобно для шага «Открыть URL» в ChatFlow).
+**Формат payload ChatFlow (как у тебя работало раньше):**  
+BuildCRM понимает payload вида `{ "instanceId": "...", "sender": { "id": "7706...", "name": "Ali" }, "message": { "type": "text", "text": "Текст сообщения" } }` — по нему берутся `sender.id` → телефон, `sender.name` → имя лида, `message.text` или `message.caption` → текст.
+
+**Вход по ключу (как раньше):**  
+Если в настройках клиента задан **Webhook Key**, в ChatFlow можно указать URL:  
+`POST https://buildcrm-api.onrender.com/webhooks/chatflow?key=WEBHOOK_KEY`  
+(без tenantId в пути; тенант определяется по ключу).
+
+**Важно:** Данные можно передавать в **body** (JSON), в т.ч. формат выше, или в **query** (`?text=...&from=...`). Поддерживается и **GET** с query.
 
 **Варианты тела, которые понимает наш API:**
 
