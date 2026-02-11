@@ -194,16 +194,18 @@ export default function LeadDetailPage() {
             <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{lead.aiNotes}</div>
           </div>
         )}
-        {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt || lead.metadata.suggestedCallNote) && (
+        {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
           <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--warning)' }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>📞 Позвонить</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-              {lead.metadata.suggestedCallNote ? String(lead.metadata.suggestedCallNote) : lead.metadata.suggestedCallAt
-                ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                : ''}
+              {lead.metadata.suggestedCallNote != null
+                ? String(lead.metadata.suggestedCallNote)
+                : lead.metadata.suggestedCallAt != null
+                  ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                  : ''}
             </div>
           </div>
-        )}
+        ) : null}
         {lead.metadata && typeof lead.metadata === 'object' && Object.keys(lead.metadata).length > 0 && (
           <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Данные</div>

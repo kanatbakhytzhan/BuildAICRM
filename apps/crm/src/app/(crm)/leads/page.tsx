@@ -400,18 +400,18 @@ export default function LeadsPage() {
                               </p>
                             </div>
                           )}
-                          {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt || lead.metadata.suggestedCallNote) && (
+                          {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
                             <div style={{ marginBottom: 8, padding: '0.4rem 0.6rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span aria-hidden>📞</span>
                               <span>
-                                Позвонить: {lead.metadata.suggestedCallNote
+                                Позвонить: {lead.metadata.suggestedCallNote != null
                                   ? String(lead.metadata.suggestedCallNote)
-                                  : lead.metadata.suggestedCallAt
+                                  : lead.metadata.suggestedCallAt != null
                                     ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                                     : ''}
                               </span>
                             </div>
-                          )}
+                          ) : null}
                           {lead.lastMessagePreview && (
                             <p style={{ margin: '0 0 8px', fontSize: 13, color: lead.aiActive ? 'var(--text-muted)' : 'var(--text)', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties} title={lead.lastMessagePreview}>
                               {lead.lastMessagePreview.slice(0, 80)}{lead.lastMessagePreview.length > 80 ? '…' : ''}
