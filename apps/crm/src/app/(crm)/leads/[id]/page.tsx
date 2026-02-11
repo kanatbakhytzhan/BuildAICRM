@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { leads, messages, pipeline, ai, type Lead, type Message, type Stage } from '@/lib/api';
 
-type LeadWithMeta = Lead & { metadata?: Record<string, unknown> };
+type LeadWithMeta = Lead & { metadata?: Record<string, unknown> | null };
 
 export default function LeadDetailPage() {
   const params = useParams();
