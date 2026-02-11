@@ -19,12 +19,22 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
   let phone: string | undefined;
   let name: string | undefined;
 
-  // Формат ChatFlow (messageType, message, metadata.remoteJid, metadata.sender)
+  // Формат ChatFlow (messageType, message, metadata.remoteJid, metadata.sender, mediaData)
   if (typeof body.message === 'string') text = body.message;
   const metadata = body.metadata as Record<string, unknown> | undefined;
   if (metadata && typeof metadata === 'object') {
     if (metadata.remoteJid !== undefined) phone = String(metadata.remoteJid);
     if (typeof metadata.sender === 'string') name = metadata.sender;
+  }
+
+  // Голосовые/медиа: если текст пустой, но есть mediaData, подставляем понятный плейсхолдер
+  const mediaData = body.mediaData as Record<string, unknown> | undefined;
+  if ((!text || !text.trim()) && mediaData && typeof mediaData === 'object') {
+    const mediaType = typeof mediaData.type === 'string' ? mediaData.type.toLowerCase() : '';
+    if (mediaType === 'audio') text = '[Голосовое сообщение]';
+    else if (mediaType === 'image') text = '[Фото]';
+    else if (mediaType === 'video') text = '[Видео]';
+    else text = '[Медиа сообщение]';
   }
 
   // Формат ChatFlow (старый): sender.id, sender.name, message.text / message.caption
