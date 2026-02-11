@@ -19,7 +19,15 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
   let phone: string | undefined;
   let name: string | undefined;
 
-  // Формат ChatFlow (как у тебя было): sender.id, sender.name, message.text / message.caption
+  // Формат ChatFlow (messageType, message, metadata.remoteJid, metadata.sender)
+  if (typeof body.message === 'string') text = body.message;
+  const metadata = body.metadata as Record<string, unknown> | undefined;
+  if (metadata && typeof metadata === 'object') {
+    if (metadata.remoteJid !== undefined) phone = String(metadata.remoteJid);
+    if (typeof metadata.sender === 'string') name = metadata.sender;
+  }
+
+  // Формат ChatFlow (старый): sender.id, sender.name, message.text / message.caption
   const sender = body.sender as Record<string, unknown> | undefined;
   if (sender && typeof sender === 'object') {
     if (sender.id !== undefined) phone = String(sender.id);
