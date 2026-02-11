@@ -38,6 +38,7 @@ export type Lead = {
   lastMessageAt: string | null;
   noResponseSince: string | null;
   aiNotes?: string | null;
+  metadata?: Record<string, unknown> | null;
   stage: { id: string; name: string; type: string };
   assignedUser?: { id: string; name: string | null; email: string } | null;
 };

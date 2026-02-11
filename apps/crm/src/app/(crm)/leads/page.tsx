@@ -395,9 +395,21 @@ export default function LeadsPage() {
                           </div>
                           {lead.aiActive && lead.aiNotes && (
                             <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)', marginBottom: 8 }}>
-                              <p style={{ margin: 0, fontSize: 12, color: 'var(--text)', fontStyle: 'italic', lineHeight: 1.35 }}>
-                                AI: {lead.aiNotes.slice(0, 60)}{lead.aiNotes.length > 60 ? '…' : ''}
+                              <p style={{ margin: 0, fontSize: 12, color: 'var(--text)', lineHeight: 1.35 }}>
+                                {lead.aiNotes.length > 100 ? `${lead.aiNotes.slice(0, 100)}…` : lead.aiNotes}
                               </p>
+                            </div>
+                          )}
+                          {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt || lead.metadata.suggestedCallNote) && (
+                            <div style={{ marginBottom: 8, padding: '0.4rem 0.6rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span aria-hidden>📞</span>
+                              <span>
+                                Позвонить: {lead.metadata.suggestedCallNote
+                                  ? String(lead.metadata.suggestedCallNote)
+                                  : lead.metadata.suggestedCallAt
+                                    ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                                    : ''}
+                              </span>
                             </div>
                           )}
                           {lead.lastMessagePreview && (

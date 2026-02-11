@@ -86,10 +86,68 @@ export class AiService {
       }
     }
 
+    // Когда перезвонить: «через полчаса», «жарты сагат», «бугин жарт сагат кейн», «через час», «завтра в 10»
+    const callTime = this.parseSuggestedCallTime(text);
+    if (callTime) {
+      patch.suggestedCallAt = callTime.at;
+      patch.suggestedCallNote = callTime.note;
+    }
+
     if (Object.keys(patch).length === 0) {
       return (current ?? {}) as Prisma.InputJsonValue;
     }
     return this.mergeMetadata(current, patch);
+  }
+
+  /** Парсит из текста указание «когда перезвонить» и возвращает ISO-дату и подпись. */
+  private parseSuggestedCallTime(text: string): { at: string; note: string } | null {
+    const lower = text.toLowerCase().trim();
+    const now = new Date();
+    let at: Date | null = null;
+    let note = '';
+
+    // через полчаса / пол часа / жарты сагат / жарт сагат кейн / бугин жарт сагат кейн
+    if (
+      /(через\s+)?(полчаса|пол\s+часа|жарты?\s+сагат|сагат\s+кейн|полчаса\s+кейн)/.test(lower) ||
+      /бугин\s+жарт\s+сагат/.test(lower)
+    ) {
+      at = new Date(now.getTime() + 30 * 60 * 1000);
+      note = 'Через 30 мин';
+    }
+    // через час / через 1 час
+    else if (/(через\s+)?(1\s+)?час[ау]?(\s+кейн)?/.test(lower) && !lower.includes('полчаса') && !lower.includes('жарты')) {
+      at = new Date(now.getTime() + 60 * 60 * 1000);
+      note = 'Через 1 час';
+    }
+    // через N минут
+    else {
+      const minsMatch = lower.match(/через\s+(\d+)\s*м(ин|инут)/);
+      if (minsMatch) {
+        const m = Number(minsMatch[1]);
+        if (!Number.isNaN(m) && m > 0 && m < 1440) {
+          at = new Date(now.getTime() + m * 60 * 1000);
+          note = `Через ${m} мин`;
+        }
+      }
+    }
+    // завтра в 10 / завтра в 10:30
+    if (!at && /завтра\s+в\s+(\d{1,2})(?::(\d{2}))?/.test(lower)) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const hourMatch = lower.match(/завтра\s+в\s+(\d{1,2})(?::(\d{2}))?/);
+      if (hourMatch) {
+        const h = Number(hourMatch[1]);
+        const min = hourMatch[2] ? Number(hourMatch[2]) : 0;
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
+          tomorrow.setHours(h, Number.isNaN(min) ? 0 : min, 0, 0);
+          at = tomorrow;
+          note = `Завтра в ${h}:${String(min).padStart(2, '0')}`;
+        }
+      }
+    }
+
+    if (!at) return null;
+    return { at: at.toISOString(), note };
   }
 
   private async generateOpenAIReply(params: {
@@ -197,7 +255,17 @@ export class AiService {
       if (wantsCall) newStageId = wantsCall.id;
     }
 
-    const aiNotes = `AI обновил оценку лида до "${newScore}" и стадию до "${newStageId ? 'специальной стадии' : lead.stageId}" на основе текста клиента: ${decisionReason}.`;
+    const effectiveStageId = newStageId ?? lead.stageId;
+    const stageForNotes =
+      effectiveStageId === lead.stageId
+        ? lead.stage
+        : await this.prisma.pipelineStage.findFirst({
+            where: { id: effectiveStageId },
+            select: { name: true },
+          });
+    const stageName = stageForNotes && 'name' in stageForNotes ? stageForNotes.name : 'текущая';
+    const scoreLabel = newScore === 'hot' ? 'горячий' : newScore === 'warm' ? 'тёплый' : 'холодный';
+    const aiNotes = `Оценка: ${scoreLabel}. Стадия: ${stageName}. ${decisionReason}`;
 
     const newMetadata = this.extractMetadataFromText(lead.metadata ?? null, text);
 
