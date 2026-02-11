@@ -127,11 +127,11 @@ export default function LeadsPage() {
 
   return (
     <div className="page-content" style={{ background: 'var(--bg)', paddingLeft: 0, paddingRight: 0 }}>
-      {/* Тулбар как в референсе: белая полоса, граница, отступы */}
-      <div style={{
+      {/* Тулбар: на мобилке компактный стек */}
+      <div className="leads-toolbar-mobile" style={{
         background: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
-        padding: '1.25rem 2rem',
+        padding: '1rem 1rem 1.25rem',
         marginLeft: 0,
         marginRight: 0,
       }}>
@@ -143,16 +143,16 @@ export default function LeadsPage() {
           gap: '1rem',
           maxWidth: 1200,
           margin: '0 auto',
-          paddingLeft: '1rem',
-          paddingRight: '1rem',
+          paddingLeft: '0',
+          paddingRight: '0',
         }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>Заявки</h1>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Воронка продаж WhatsApp</p>
+            <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>Заявки</h1>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)' }}>Воронка продаж WhatsApp</p>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: 540 }}>
-            <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 0, maxWidth: 320 }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 18 }} aria-hidden>🔍</span>
+          <div className="leads-toolbar-row2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: 540 }}>
+            <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0, maxWidth: '100%' }}>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 16 }} aria-hidden>🔍</span>
               <input
                 type="search"
                 placeholder="Поиск по имени, телефону..."
@@ -160,7 +160,7 @@ export default function LeadsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '0.65rem 0.75rem 0.65rem 2.5rem',
+                  padding: '0.6rem 0.75rem 0.6rem 2.25rem',
                   border: 'none',
                   borderRadius: 'var(--radius-lg)',
                   background: 'var(--bg)',
@@ -175,7 +175,7 @@ export default function LeadsPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '0.65rem 1rem',
+                padding: '0.6rem 0.9rem',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 background: 'var(--bg)',
@@ -192,7 +192,7 @@ export default function LeadsPage() {
               onChange={(e) => setStageFilter(e.target.value)}
               title="Стадия"
               style={{
-                padding: '0.65rem 0.75rem',
+                padding: '0.6rem 0.75rem',
                 border: 'none',
                 borderRadius: 'var(--radius-lg)',
                 background: 'var(--bg)',
@@ -215,13 +215,13 @@ export default function LeadsPage() {
                 type="button"
                 onClick={() => setViewMode('kanban')}
                 style={{
-                  padding: '0.45rem 0.9rem',
+                  padding: '0.4rem 0.75rem',
                   borderRadius: 6,
                   border: 'none',
                   background: viewMode === 'kanban' ? 'var(--accent)' : 'transparent',
                   color: viewMode === 'kanban' ? 'white' : 'var(--text)',
                   fontWeight: 700,
-                  fontSize: 14,
+                  fontSize: 13,
                 }}
               >
                 Канбан
@@ -230,13 +230,13 @@ export default function LeadsPage() {
                 type="button"
                 onClick={() => setViewMode('list')}
                 style={{
-                  padding: '0.45rem 0.9rem',
+                  padding: '0.4rem 0.75rem',
                   borderRadius: 6,
                   border: 'none',
                   background: viewMode === 'list' ? 'var(--accent)' : 'transparent',
                   color: viewMode === 'list' ? 'white' : 'var(--text)',
                   fontWeight: 700,
-                  fontSize: 14,
+                  fontSize: 13,
                 }}
               >
                 Список
@@ -248,7 +248,7 @@ export default function LeadsPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '0.65rem 1.25rem',
+                padding: '0.6rem 1rem',
                 background: 'var(--accent)',
                 color: 'white',
                 borderRadius: 'var(--radius-lg)',
@@ -266,8 +266,8 @@ export default function LeadsPage() {
 
       <div style={{ padding: '0 1rem 1rem', maxWidth: 1200, margin: '0 auto' }}>
       {viewMode === 'kanban' && (
-        <div className="leads-kanban-scroll kanban-scroll" style={{ background: 'var(--bg)', margin: '0 -1rem', paddingLeft: '1rem', paddingRight: '1rem' }}>
-          <div style={{ display: 'flex', gap: '1.5rem', minHeight: 440, alignItems: 'flex-start', minWidth: 'max-content' }}>
+        <div className="leads-kanban-scroll kanban-scroll" style={{ background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', gap: '1rem', minHeight: 400, alignItems: 'flex-start', minWidth: 'max-content' }}>
           {leadsByStage.map((col) => {
             const isUrgent = col.type === 'wants_call';
             const isAiColumn = col.type === 'in_progress';
@@ -277,14 +277,15 @@ export default function LeadsPage() {
                 key={col.id}
                 className="kanban-column"
                 style={{
-                  minWidth: 320,
+                  minWidth: 280,
                   maxWidth: 320,
                   flexShrink: 0,
+                  width: '100%',
                   background: isAiColumn ? 'linear-gradient(to bottom, rgba(19,127,236,0.08), transparent)' : 'var(--surface)',
                   border: '1px solid var(--border)',
                   borderLeft: isAiColumn ? '4px solid var(--accent)' : isUrgent ? '4px solid var(--danger)' : '1px solid var(--border)',
                   borderRadius: 'var(--radius-xl)',
-                  padding: '1rem',
+                  padding: '0.875rem',
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
@@ -364,18 +365,19 @@ export default function LeadsPage() {
                       >
                         <Link href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative', zIndex: 1 }} onClick={(e) => isMoving && e.preventDefault()}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{lead.name || lead.phone}</div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div className="lead-card-name" style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name || lead.phone}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Стадия: {lead.stage.name}</div>
                               {noResp ? (
-                                <div style={{ fontSize: 12, color: 'var(--warning)', fontWeight: 500, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{ fontSize: 11, color: 'var(--warning)', fontWeight: 500, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <span aria-hidden>🕐</span> {noResp}
                                 </div>
                               ) : isUrgent && lead.leadScore === 'hot' ? (
-                                <div style={{ fontSize: 12, color: 'var(--danger)', fontWeight: 700, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <span aria-hidden>⚠</span> Требует внимания
                                 </div>
                               ) : (
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{timeAgoExtended(lead.lastMessageAt)}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{timeAgoExtended(lead.lastMessageAt)}</div>
                               )}
                             </div>
                             <div style={{
@@ -394,17 +396,17 @@ export default function LeadsPage() {
                             </div>
                           </div>
                           {lead.aiActive && lead.aiNotes && (
-                            <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)', marginBottom: 8 }}>
-                              <p style={{ margin: 0, fontSize: 12, color: 'var(--text)', lineHeight: 1.35 }}>
-                                {lead.aiNotes.length > 100 ? `${lead.aiNotes.slice(0, 100)}…` : lead.aiNotes}
+                            <div style={{ background: 'var(--accent-light)', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius)', marginBottom: 6 }}>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--text)', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties}>
+                                {lead.aiNotes.length > 80 ? `${lead.aiNotes.slice(0, 80)}…` : lead.aiNotes}
                               </p>
                             </div>
                           )}
                           {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
-                            <div style={{ marginBottom: 8, padding: '0.4rem 0.6rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ marginBottom: 6, padding: '0.35rem 0.5rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 11, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
                               <span aria-hidden>📞</span>
-                              <span>
-                                Позвонить: {lead.metadata.suggestedCallNote != null
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {lead.metadata.suggestedCallNote != null
                                   ? String(lead.metadata.suggestedCallNote)
                                   : lead.metadata.suggestedCallAt != null
                                     ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -413,15 +415,15 @@ export default function LeadsPage() {
                             </div>
                           ) : null}
                           {lead.lastMessagePreview && (
-                            <p style={{ margin: '0 0 8px', fontSize: 13, color: lead.aiActive ? 'var(--text-muted)' : 'var(--text)', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties} title={lead.lastMessagePreview}>
-                              {lead.lastMessagePreview.slice(0, 80)}{lead.lastMessagePreview.length > 80 ? '…' : ''}
+                            <p style={{ margin: '0 0 6px', fontSize: 12, color: lead.aiActive ? 'var(--text-muted)' : 'var(--text)', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } as React.CSSProperties} title={lead.lastMessagePreview}>
+                              {lead.lastMessagePreview}
                             </p>
                           )}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                             <span className={scoreTagClass(lead.leadScore)} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
                               {scoreTagText(lead.leadScore)}
                             </span>
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Чат →</span>
+                            <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Чат →</span>
                           </div>
                         </Link>
                       </div>
@@ -458,8 +460,8 @@ export default function LeadsPage() {
       )}
 
       {viewMode === 'list' && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'auto', boxShadow: 'var(--shadow-sm)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
             <thead>
               <tr style={{ background: 'var(--sidebar-bg)' }}>
                 <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Контакт</th>

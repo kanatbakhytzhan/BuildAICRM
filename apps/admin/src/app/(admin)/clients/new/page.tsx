@@ -8,6 +8,8 @@ import { adminTenants } from '@/lib/api';
 export default function NewClientPage() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +18,12 @@ export default function NewClientPage() {
     setError('');
     setLoading(true);
     try {
-      const tenant = await adminTenants.create(name);
+      const tenant = await adminTenants.create({
+        name,
+        ...(loginEmail.trim() && loginPassword.length >= 6
+          ? { loginEmail: loginEmail.trim(), loginPassword }
+          : {}),
+      });
       router.push(`/clients/${tenant.id}`);
       router.refresh();
     } catch (err) {
@@ -45,13 +52,37 @@ export default function NewClientPage() {
         }}
       >
         <label style={{ display: 'block', marginBottom: '1rem' }}>
-          <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Название</span>
+          <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Название компании</span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             placeholder="ООО Компания"
+            style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+          />
+        </label>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--sidebar-bg)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+          Логин и пароль для входа владельца в CRM (опционально; можно создать позже).
+        </div>
+        <label style={{ display: 'block', marginBottom: '1rem' }}>
+          <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Email (логин владельца)</span>
+          <input
+            type="email"
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
+            placeholder="owner@company.com"
+            style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+          />
+        </label>
+        <label style={{ display: 'block', marginBottom: '1rem' }}>
+          <span style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--text-muted)' }}>Пароль (не менее 6 символов)</span>
+          <input
+            type="password"
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            placeholder="••••••••"
+            minLength={6}
             style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
           />
         </label>

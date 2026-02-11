@@ -1,11 +1,20 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { AdminTenantsService } from './admin-tenants.service';
 import { AdminGuard } from './admin.guard';
-import { IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 class CreateTenantDto {
   @IsString()
   name: string;
+
+  @IsOptional()
+  @IsEmail()
+  loginEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(6, { message: 'Пароль не менее 6 символов' })
+  loginPassword?: string;
 }
 
 class UpdateTenantDto {

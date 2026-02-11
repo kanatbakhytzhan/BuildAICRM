@@ -31,7 +31,8 @@ export const adminAuth = {
 export const adminTenants = {
   list: () => api<AdminTenant[]>('/admin/tenants'),
   one: (id: string) => api<AdminTenantDetail>(`/admin/tenants/${id}`),
-  create: (name: string) => api<AdminTenant>('/admin/tenants', { method: 'POST', body: JSON.stringify({ name }) }),
+  create: (data: { name: string; loginEmail?: string; loginPassword?: string }) =>
+    api<AdminTenant>('/admin/tenants', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: { name?: string; status?: string }) =>
     api<AdminTenant>(`/admin/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   getSettings: (id: string) => api<TenantSettings>(`/admin/tenants/${id}/settings`),

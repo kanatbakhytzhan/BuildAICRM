@@ -197,17 +197,33 @@ input, select, textarea {
   }
 }
 
-/* Kanban: smooth horizontal scroll on mobile */
+/* Kanban: mobile — одна колонка на экран, удобный скролл */
 @media (max-width: 768px) {
   .kanban-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: 1rem;
     padding-bottom: 0.5rem;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
-  .kanban-scroll > * {
+  .kanban-scroll .kanban-column {
     scroll-snap-align: start;
-    min-width: 280px;
+    scroll-snap-stop: normal;
+    min-width: min(320px, calc(100vw - 2rem));
+    max-width: min(320px, calc(100vw - 2rem));
+  }
+  .leads-toolbar-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .leads-toolbar-mobile .leads-toolbar-row2 {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 }
 
@@ -284,7 +300,7 @@ a.leads-add-btn:hover {
   text-decoration: none;
 }
 
-/* Lead detail: stack columns on mobile */
+/* Lead detail: stack columns on mobile; timeline внизу в раскрывашке */
 .lead-detail-root {
   display: flex;
   min-height: 100%;
@@ -306,18 +322,21 @@ a.leads-add-btn:hover {
 .lead-detail-timeline {
   display: flex;
 }
+.lead-detail-timeline-mobile {
+  display: none;
+}
 @media (max-width: 1024px) {
   .lead-detail-timeline {
     display: none;
   }
-}
-@media (max-width: 768px) {
-  .lead-detail-chat {
-    /* На мобилке чат занимает весь экран под шапкой лида */
-    max-height: calc(100dvh - 220px);
+  .lead-detail-timeline-mobile {
+    display: block;
   }
 }
 @media (max-width: 768px) {
+  .lead-detail-chat {
+    max-height: none;
+  }
   .lead-detail-root {
     flex-direction: column;
   }

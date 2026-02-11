@@ -11,6 +11,12 @@ function roleLabel(r: string) {
   return 'Менеджер';
 }
 
+const ROLES = [
+  { value: 'manager', label: 'Менеджер' },
+  { value: 'rop', label: 'РОП' },
+  { value: 'owner', label: 'Администратор' },
+] as const;
+
 function roleBadgeStyle(r: string): React.CSSProperties {
   if (r === 'owner') return { background: '#7c3aed', color: 'white' };
   if (r === 'rop') return { background: 'var(--accent)', color: 'white' };
@@ -33,6 +39,20 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createRole, setCreateRole] = useState<string>('manager');
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
+
+  const canInvite = currentUser?.role === 'owner' || currentUser?.role === 'rop';
+
+  useEffect(() => {
+    users.me().then((u) => setCurrentUser(u)).catch(() => setCurrentUser(null));
+  }, []);
 
   useEffect(() => {
     users.list().then((data) => {
@@ -80,23 +100,33 @@ export default function UsersPage() {
             Управление командой и правами доступа в CRM
           </p>
         </div>
-        <button
-          type="button"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '0.5rem 1rem',
-            background: 'var(--accent)',
-            color: 'white',
-            border: 'none',
-            borderRadius: 'var(--radius)',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          + Пригласить пользователя
-        </button>
+        {canInvite && (
+          <button
+            type="button"
+            onClick={() => {
+              setModalOpen(true);
+              setCreateEmail('');
+              setCreatePassword('');
+              setCreateName('');
+              setCreateRole('manager');
+              setCreateError('');
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0.5rem 1rem',
+              background: 'var(--accent)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius)',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            + Создать / пригласить пользователя
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
@@ -300,6 +330,123 @@ export default function UsersPage() {
             </div>
           </div>
         </>
+      )}
+
+      {modalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => !createLoading && setModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.5rem',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 1rem', fontSize: '1.25rem' }}>Создать пользователя</h2>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setCreateError('');
+                if (!createEmail.trim() || createPassword.length < 6) {
+                  setCreateError('Email и пароль (не менее 6 символов) обязательны.');
+                  return;
+                }
+                setCreateLoading(true);
+                try {
+                  await users.create({
+                    email: createEmail.trim(),
+                    password: createPassword,
+                    name: createName.trim() || undefined,
+                    role: createRole,
+                  });
+                  const data = await users.list();
+                  setList(data);
+                  setModalOpen(false);
+                } catch (err) {
+                  setCreateError(err instanceof Error ? err.message : 'Ошибка создания');
+                } finally {
+                  setCreateLoading(false);
+                }
+              }}
+            >
+              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                <span style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>Email *</span>
+                <input
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </label>
+              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                <span style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>Пароль (не менее 6 символов) *</span>
+                <input
+                  type="password"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  minLength={6}
+                  required
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </label>
+              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                <span style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>Имя</span>
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="Необязательно"
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                />
+              </label>
+              <label style={{ display: 'block', marginBottom: '1rem' }}>
+                <span style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>Роль</span>
+                <select
+                  value={createRole}
+                  onChange={(e) => setCreateRole(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </label>
+              {createError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: '0.75rem' }}>{createError}</p>}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => !createLoading && setModalOpen(false)}
+                  style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}
+                >
+                  {createLoading ? 'Создание...' : 'Создать'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

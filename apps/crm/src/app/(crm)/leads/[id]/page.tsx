@@ -5,6 +5,71 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { leads, messages, pipeline, ai, type Lead, type Message, type Stage } from '@/lib/api';
 
+function MobileTimelineSection({ eventHistory, scoreValue }: { eventHistory: { type: string; createdAt: string; title: string; desc: string; color: string }[]; scoreValue: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="lead-detail-timeline-mobile" style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%',
+          padding: '1rem 1.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          border: 'none',
+          background: 'transparent',
+          fontSize: 14,
+          fontWeight: 700,
+          color: 'var(--text)',
+        }}
+      >
+        История событий · Вероятность сделки
+        <span style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 1.25rem 1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            <span>Вероятность сделки</span>
+            <span style={{ fontWeight: 700, color: 'var(--success)' }}>{scoreValue}%</span>
+          </div>
+          <div style={{ width: '100%', height: 6, background: 'var(--border)', borderRadius: 999, overflow: 'hidden', marginBottom: '1rem' }}>
+            <div style={{ width: `${scoreValue}%`, height: '100%', background: 'var(--success)', borderRadius: 999 }} />
+          </div>
+          <div style={{ position: 'relative', paddingLeft: 16, borderLeft: '2px solid var(--border)' }}>
+            {eventHistory.map((ev, i) => (
+              <div key={`${ev.type}-${ev.createdAt}-${i}`} style={{ position: 'relative', marginBottom: '1rem' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: -21,
+                    top: 2,
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: ev.color === 'green' ? 'var(--success)' : ev.color === 'blue' ? 'var(--accent)' : ev.color === 'orange' ? 'var(--warning)' : 'var(--tag-demo-text)',
+                    border: '2px solid var(--surface)',
+                  }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {new Date(ev.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <h4 style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{ev.title}</h4>
+                {ev.type === 'stage' ? (
+                  <span style={{ fontSize: 12, color: 'var(--warning)', background: 'var(--warning-bg)', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginTop: 4 }}>{ev.desc}</span>
+                ) : (
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{ev.desc}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type LeadWithMeta = Lead & { metadata?: Record<string, unknown> | null };
 
 export default function LeadDetailPage() {
@@ -396,6 +461,8 @@ export default function LeadDetailPage() {
           </div>
         </div>
       </div>
+
+      <MobileTimelineSection eventHistory={eventHistory} scoreValue={scoreNum(lead.leadScore)} />
 
       {/* Правая колонка: история событий */}
       <aside className="lead-detail-timeline" style={{

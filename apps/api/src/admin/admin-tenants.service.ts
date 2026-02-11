@@ -1,5 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+
+const DEFAULT_STAGES = [
+  { name: 'Новые', type: 'new' },
+  { name: 'В работе (AI)', type: 'in_progress' },
+  { name: 'Просит звонок', type: 'wants_call' },
+  { name: 'Полные данные', type: 'full_data' },
+  { name: 'Успех', type: 'success' },
+  { name: 'Отказ', type: 'refused' },
+];
 
 @Injectable()
 export class AdminTenantsService {
@@ -24,10 +34,31 @@ export class AdminTenantsService {
     return t;
   }
 
-  async create(data: { name: string }) {
-    return this.prisma.tenant.create({
+  async create(data: { name: string; loginEmail?: string; loginPassword?: string }) {
+    const tenant = await this.prisma.tenant.create({
       data: { name: data.name },
     });
+    await this.prisma.pipelineStage.createMany({
+      data: DEFAULT_STAGES.map((s, i) => ({
+        tenantId: tenant.id,
+        name: s.name,
+        type: s.type,
+        order: i,
+      })),
+    });
+    if (data.loginEmail && data.loginPassword) {
+      const passwordHash = await bcrypt.hash(data.loginPassword, 10);
+      await this.prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          email: data.loginEmail.toLowerCase().trim(),
+          passwordHash,
+          name: data.name,
+          role: 'owner',
+        },
+      });
+    }
+    return tenant;
   }
 
   async update(id: string, data: { name?: string; status?: string }) {

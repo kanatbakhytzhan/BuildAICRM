@@ -59,6 +59,8 @@ export const tenants = {
 export const users = {
   me: () => api<User>('/users/me'),
   list: () => api<User[]>('/users'),
+  create: (data: { email: string; password: string; name?: string; role: string }) =>
+    api<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const pipeline = {
