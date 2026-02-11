@@ -58,6 +58,33 @@ export class MessagesService {
       },
     });
 
+    // Отправить исходящее сообщение менеджера в WhatsApp через ChatFlow
+    if (
+      data.direction === MessageDirection.out &&
+      data.body?.trim() &&
+      data.source === MessageSource.human
+    ) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+      });
+      if (settings?.chatflowApiToken && settings?.chatflowInstanceId) {
+        const phone = String(lead.phone).replace(/\D/g, '');
+        if (phone.length >= 10) {
+          const jid = `${phone}@s.whatsapp.net`;
+          const url = new URL('https://app.chatflow.kz/api/v1/send-text');
+          url.searchParams.set('token', settings.chatflowApiToken);
+          url.searchParams.set('instance_id', settings.chatflowInstanceId);
+          url.searchParams.set('jid', jid);
+          url.searchParams.set('msg', data.body.trim());
+          try {
+            await fetch(url.toString());
+          } catch {
+            // не падаем: сообщение уже сохранено в CRM
+          }
+        }
+      }
+    }
+
     return message;
   }
 }

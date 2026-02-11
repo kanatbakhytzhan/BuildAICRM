@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { leads, messages, pipeline, type Lead, type Message, type Stage } from '@/lib/api';
+import { leads, messages, pipeline, ai, type Lead, type Message, type Stage } from '@/lib/api';
 
 type LeadWithMeta = Lead & { metadata?: Record<string, unknown> };
 
@@ -47,9 +47,9 @@ export default function LeadDetailPage() {
     setHandoffError(null);
     setHandoffLoading(true);
     try {
-      // Используем PATCH /leads/:id (aiActive), чтобы работало без маршрута /ai/.../handoff
-      const nextAiActive = !lead.aiActive;
-      const updated = await leads.update(lead.id, { aiActive: nextAiActive });
+      const updated = lead.aiActive
+        ? await ai.takeOver(lead.id)
+        : await ai.release(lead.id);
       setLead(updated as LeadWithMeta);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ошибка при смене режима диалога';
