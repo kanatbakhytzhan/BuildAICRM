@@ -43,12 +43,14 @@ model TenantChannel {
 
 // Универсально: темы/категории лидов настраиваются владельцем (панели, ламинат, линолеум или что угодно).
 model TenantTopic {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  sortOrder    Int      @default(0)
+  scenarioText String?  @db.Text   // Этап 4: сценарий/инструкция для AI по теме (панели, ламинат и т.д.)
+  mediaUrl     String?  // ссылка на медиа по теме (когда готово)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   leads   Lead[]
@@ -89,7 +91,7 @@ model TenantSettings {
   webhookUrl        String?
   webhookKey        String?  @unique // ключ для входа по ?key= (как у тебя было: tenant.webhook_key)
   systemPrompt     String?   @db.Text
-  respondFirst     Boolean  @default(true)
+  respondFirst     Boolean  @default(false)  // false = не приветствовать первым, ждать сообщение клиента
   suggestCall      Boolean  @default(true)
   askQuestions     Boolean  @default(true)
   nightModeEnabled Boolean  @default(false)

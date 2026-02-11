@@ -65,12 +65,14 @@ export class LeadsController {
   async list(
     @CurrentUser() user: RequestUser,
     @Query('stageId') stageId?: string,
+    @Query('topicId') topicId?: string,
     @Query('onlyMine') onlyMine?: string,
   ) {
     const visibleTopicIds = await this.usersService.getVisibleTopicIds(user.id);
     return this.leadsService.list({
       tenantId: user.tenantId,
       stageId,
+      topicId,
       onlyMine: onlyMine === 'true',
       userId: user.id,
       visibleTopicIds,

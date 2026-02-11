@@ -5,6 +5,7 @@ import { LeadScore, Prisma } from '@prisma/client';
 export interface ListLeadsOptions {
   tenantId: string;
   stageId?: string;
+  topicId?: string;
   assignedUserId?: string | null;
   onlyMine?: boolean;
   userId?: string;
@@ -19,6 +20,7 @@ export class LeadsService {
   async list(options: ListLeadsOptions) {
     const where: Prisma.LeadWhereInput = { tenantId: options.tenantId };
     if (options.stageId) where.stageId = options.stageId;
+    if (options.topicId) where.topicId = options.topicId;
     if (options.onlyMine && options.userId) where.assignedUserId = options.userId;
     else if (options.assignedUserId !== undefined) where.assignedUserId = options.assignedUserId;
     if (options.visibleTopicIds != null && options.visibleTopicIds.length > 0) {

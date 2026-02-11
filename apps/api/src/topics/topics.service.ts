@@ -12,14 +12,20 @@ export class TopicsService {
     });
   }
 
-  async create(tenantId: string, data: { name: string; sortOrder?: number }) {
+  async create(tenantId: string, data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string }) {
     const order = data.sortOrder ?? (await this.prisma.tenantTopic.count({ where: { tenantId } }));
     return this.prisma.tenantTopic.create({
-      data: { tenantId, name: data.name, sortOrder: order },
+      data: {
+        tenantId,
+        name: data.name,
+        sortOrder: order,
+        scenarioText: data.scenarioText ?? undefined,
+        mediaUrl: data.mediaUrl ?? undefined,
+      },
     });
   }
 
-  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number }) {
+  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null }) {
     await this.findOne(tenantId, id);
     return this.prisma.tenantTopic.update({
       where: { id },

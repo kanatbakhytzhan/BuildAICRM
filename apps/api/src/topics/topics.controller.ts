@@ -13,6 +13,14 @@ class CreateTopicDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  scenarioText?: string;
+
+  @IsOptional()
+  @IsString()
+  mediaUrl?: string;
 }
 
 class UpdateTopicDto {
@@ -24,6 +32,14 @@ class UpdateTopicDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  scenarioText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  mediaUrl?: string | null;
 }
 
 @Controller('topics')

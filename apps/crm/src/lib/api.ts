@@ -28,7 +28,7 @@ export type Tenant = { id: string; name: string };
 export type User = { id: string; email: string; name: string | null; tenantId?: string; role: string; visibleTopicIds?: string[] };
 export type Stage = { id: string; name: string; type: string; order: number; topicId?: string | null; topic?: { id: string; name: string } | null; _count?: { leads: number } };
 export type Channel = { id: string; name: string; externalId: string };
-export type Topic = { id: string; name: string; sortOrder: number };
+export type Topic = { id: string; name: string; sortOrder: number; scenarioText?: string | null; mediaUrl?: string | null };
 export type Lead = {
   id: string;
   stageId: string;
@@ -91,17 +91,18 @@ export const channels = {
 
 export const topics = {
   list: () => api<Topic[]>('/topics'),
-  create: (data: { name: string; sortOrder?: number }) =>
+  create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string }) =>
     api<Topic>('/topics', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { name?: string; sortOrder?: number }) =>
+  update: (id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null }) =>
     api<Topic>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) => api<void>(`/topics/${id}`, { method: 'DELETE' }),
 };
 
 export const leads = {
-  list: (params?: { stageId?: string; onlyMine?: boolean }) => {
+  list: (params?: { stageId?: string; topicId?: string; onlyMine?: boolean }) => {
     const q = new URLSearchParams();
     if (params?.stageId) q.set('stageId', params.stageId);
+    if (params?.topicId) q.set('topicId', params.topicId);
     if (params?.onlyMine) q.set('onlyMine', 'true');
     const query = q.toString();
     return api<Lead[]>(`/leads${query ? `?${query}` : ''}`);

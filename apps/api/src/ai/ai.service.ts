@@ -228,6 +228,19 @@ export class AiService {
     return { at: at.toISOString(), note };
   }
 
+  /** Этап 4: базовый системный промпт — казахский, голосовые, темы, не приветствовать первым, один раз спросить тему если не ясна. */
+  private getDefaultSystemPrompt(): string {
+    return `Ты вежливый AI-ассистент компании. Отвечай кратко и по делу.
+
+Язык: общайся на том же языке, что и клиент. Если пишут на казахском — отвечай на казахском полноценно, без «тупых» шаблонных фраз и без перехода на русский без причины. Казахский поддерживай на уровне деловой переписки.
+
+Голосовые сообщения: если клиент прислал голосовое (в сообщении может быть пометка [Голосовое сообщение] или транскрипт) — обязательно учитывай суть и отвечай по существу, не игнорируй содержание.
+
+Тема/продукт: у компании есть направления: панели, ламинат, линолеум, погрузчик и др. По первым сообщениям постарайся понять, чем интересуется клиент. Если тема не ясна в первых сообщениях — один раз вежливо спроси: «Подскажите, пожалуйста, что вас интересует: панели, ламинат, линолеум или другая продукция?» Не повторяй этот вопрос многократно.
+
+Не приветствуй первым и не пиши первым сообщением от себя — только отвечай на реплики клиента.`;
+  }
+
   private formatMetadataForPrompt(metadata: Prisma.JsonValue | null): string {
     if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return '';
     const m = metadata as Record<string, unknown>;
@@ -253,6 +266,8 @@ export class AiService {
     openaiApiKey: string;
     currentUserMessage: string;
     leadMetadata?: Prisma.JsonValue | null;
+    topicScenario?: string | null;
+    topicName?: string | null;
   }): Promise<string> {
     const recent = await this.prisma.message.findMany({
       where: { leadId: params.leadId },
@@ -260,7 +275,10 @@ export class AiService {
       take: 30,
     });
     const contextBlock = this.formatMetadataForPrompt(params.leadMetadata ?? null);
-    const systemContent = (params.systemPrompt?.trim() || 'Ты вежливый AI-ассистент компании. Отвечай кратко и по делу. Общайся на том же языке, что и клиент.') + contextBlock;
+    let systemContent = (params.systemPrompt?.trim() || this.getDefaultSystemPrompt()) + contextBlock;
+    if (params.topicScenario?.trim()) {
+      systemContent += `\n\nСценарий по текущей теме${params.topicName ? ` (${params.topicName})` : ''} — придерживайся его в ответах:\n${params.topicScenario.trim()}`;
+    }
     const history = recent.map((m) => ({
       role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
       content: m.body || '',
@@ -428,6 +446,19 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
+    // Этап 4: сценарий по теме лида (панели, ламинат и т.д.) — подставляем в промпт
+    let topicScenario: string | null = null;
+    let topicName: string | null = null;
+    if (updatedLead.topicId) {
+      const topic = await this.prisma.tenantTopic.findFirst({
+        where: { id: updatedLead.topicId, tenantId: updatedLead.tenantId },
+      });
+      if (topic) {
+        topicScenario = topic.scenarioText ?? null;
+        topicName = topic.name;
+      }
+    }
+
     // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон. При батче (skipSaveIncoming) контекст уже в БД, не дублируем.
     let reply: string;
     if (settings?.openaiApiKey?.startsWith('sk-')) {
@@ -438,6 +469,8 @@ export class AiService {
           openaiApiKey: settings.openaiApiKey,
           currentUserMessage: skipSaveIncoming ? '' : text,
           leadMetadata: updatedLead.metadata,
+          topicScenario,
+          topicName,
         });
       } catch (err) {
         await this.logs.log({

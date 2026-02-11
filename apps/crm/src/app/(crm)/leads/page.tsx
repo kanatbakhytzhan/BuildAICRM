@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { pipeline, leads, type Stage, type Lead } from '@/lib/api';
+import { pipeline, leads, topics, type Stage, type Lead, type Topic } from '@/lib/api';
 
 type ViewMode = 'kanban' | 'list';
 
@@ -58,11 +58,13 @@ function noResponseLabel(noResponseSince: string | null): string | null {
 
 export default function LeadsPage() {
   const [stages, setStages] = useState<Stage[]>([]);
+  const [topicsList, setTopicsList] = useState<Topic[]>([]);
   const [leadsList, setLeadsList] = useState<Lead[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [onlyMine, setOnlyMine] = useState(false);
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [topicFilter, setTopicFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
@@ -72,16 +74,18 @@ export default function LeadsPage() {
     setLoading(true);
     Promise.all([
       pipeline.list(),
-      leads.list({ onlyMine, stageId: stageFilter || undefined }),
-    ]).then(([s, l]) => {
+      topics.list(),
+      leads.list({ onlyMine, stageId: stageFilter || undefined, topicId: topicFilter || undefined }),
+    ]).then(([s, top, l]) => {
       setStages(s);
+      setTopicsList(top);
       setLeadsList(l);
     }).catch(console.error).finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, [onlyMine, stageFilter]);
+  }, [onlyMine, stageFilter, topicFilter]);
 
   const filtered = search.trim()
     ? leadsList.filter(
@@ -214,6 +218,25 @@ export default function LeadsPage() {
               <option value="">Все стадии</option>
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={topicFilter}
+              onChange={(e) => setTopicFilter(e.target.value)}
+              title="Тема"
+              style={{
+                padding: '0.6rem 0.75rem',
+                border: 'none',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              <option value="">Все темы</option>
+              {topicsList.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 14, fontWeight: 500 }}>
