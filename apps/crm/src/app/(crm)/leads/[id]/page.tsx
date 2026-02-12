@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { leads, messages, pipeline, ai, type Lead, type Message, type Stage } from '@/lib/api';
+import { leads, messages, pipeline, ai, users, type Lead, type Message, type Stage } from '@/lib/api';
 
 function MobileTimelineSection({ eventHistory, scoreValue }: { eventHistory: { type: string; createdAt: string; title: string; desc: string; color: string }[]; scoreValue: number }) {
   const [open, setOpen] = useState(false);
@@ -86,6 +86,13 @@ export default function LeadDetailPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
+  const [dealAmountInput, setDealAmountInput] = useState('');
+  const [savingDeal, setSavingDeal] = useState(false);
+
+  useEffect(() => {
+    users.me().then(setCurrentUser).catch(() => setCurrentUser(null));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -94,6 +101,8 @@ export default function LeadDetailPage() {
         setLead(l);
         setMsgs(m);
         setStages(s);
+        const amt = l.dealAmount != null ? String(l.dealAmount) : '';
+        setDealAmountInput(amt);
       })
       .catch(() => router.replace('/leads'))
       .finally(() => setLoading(false));
@@ -268,6 +277,42 @@ export default function LeadDetailPage() {
             ))}
           </select>
         </div>
+        {lead.stage.type === 'success' && (currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--success-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--success)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Сумма сделки, ₸</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={dealAmountInput}
+                onChange={(e) => setDealAmountInput(e.target.value)}
+                placeholder="0"
+                style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+              />
+              <button
+                type="button"
+                disabled={savingDeal}
+                onClick={async () => {
+                  const num = dealAmountInput.trim() ? Math.round(Number(dealAmountInput)) : null;
+                  if (num != null && (Number.isNaN(num) || num < 0)) return;
+                  setSavingDeal(true);
+                  try {
+                    const updated = await leads.update(lead.id, { dealAmount: num ?? null });
+                    setLead(updated as LeadWithMeta);
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setSavingDeal(false);
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', background: 'var(--success)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600, cursor: savingDeal ? 'wait' : 'pointer' }}
+              >
+                {savingDeal ? '…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ fontSize: 14, marginBottom: 4 }}>
           <span style={{ color: 'var(--text-muted)' }}>Оценка: </span>
           {scoreLabel(lead.leadScore)}

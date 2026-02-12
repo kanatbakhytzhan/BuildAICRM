@@ -43,6 +43,7 @@ export type Lead = {
   noResponseSince: string | null;
   aiNotes?: string | null;
   metadata?: Record<string, unknown> | null;
+  dealAmount?: number | string | null;
   stage: { id: string; name: string; type: string };
   assignedUser?: { id: string; name: string | null; email: string } | null;
   channel?: Channel | null;
@@ -110,8 +111,10 @@ export const leads = {
   one: (id: string) => api<Lead & { metadata?: Record<string, unknown> }>(`/leads/${id}`),
   create: (data: { stageId: string; phone: string; name?: string }) =>
     api<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<{ stageId: string; assignedUserId: string | null; leadScore: string; aiActive: boolean; name: string }>) =>
+  update: (id: string, data: Partial<{ stageId: string; assignedUserId: string | null; leadScore: string; aiActive: boolean; name: string; dealAmount: number | null }>) =>
     api<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  analytics: (period: 'day' | 'week' | 'month' | 'year') =>
+    api<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] }>(`/leads/analytics?period=${period}`),
   remove: (id: string) => api<void>(`/leads/${id}`, { method: 'DELETE' }),
 };
 

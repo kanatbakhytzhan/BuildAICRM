@@ -1,121 +1,42 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { LeadScore, Prisma } from '@prisma/client';
-
-export interface ListLeadsOptions {
-  tenantId: string;
-  stageId?: string;
-  topicId?: string;
-  assignedUserId?: string | null;
-  onlyMine?: boolean;
-  userId?: string;
-  /** Для менеджера: только лиды с этими topicId или без темы. null = все. */
-  visibleTopicIds?: string[] | null;
-}
 
 @Injectable()
-export class LeadsService {
+export class AdminLeadsService {
   constructor(private prisma: PrismaService) {}
 
-  async list(options: ListLeadsOptions) {
-    const where: Prisma.LeadWhereInput = { tenantId: options.tenantId };
-    if (options.stageId) where.stageId = options.stageId;
-    if (options.topicId) where.topicId = options.topicId;
-    if (options.onlyMine && options.userId) where.assignedUserId = options.userId;
-    else if (options.assignedUserId !== undefined) where.assignedUserId = options.assignedUserId;
-    if (options.visibleTopicIds != null && options.visibleTopicIds.length > 0) {
-      where.AND = [
-        { OR: [{ topicId: { in: options.visibleTopicIds } }, { topicId: null }] },
-      ];
-    }
-
+  async listSuccessLeads(tenantId: string) {
+    const stageIds = await this.prisma.pipelineStage.findMany({
+      where: { tenantId, type: 'success' },
+      select: { id: true },
+    }).then((s) => s.map((x) => x.id));
+    if (stageIds.length === 0) return [];
     return this.prisma.lead.findMany({
-      where,
+      where: { tenantId, stageId: { in: stageIds } },
       include: {
-        stage: { select: { id: true, name: true, type: true, order: true } },
-        assignedUser: { select: { id: true, name: true, email: true } },
-        channel: { select: { id: true, name: true, externalId: true } },
+        stage: { select: { id: true, name: true, type: true } },
         topic: { select: { id: true, name: true } },
       },
-      orderBy: [{ leadScore: 'desc' }, { lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
-  async findOne(tenantId: string, id: string) {
+  async updateDealAmount(tenantId: string, leadId: string, dealAmount: number | null) {
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId },
-      include: {
-        stage: true,
-        assignedUser: { select: { id: true, name: true, email: true } },
-        channel: { select: { id: true, name: true, externalId: true } },
-        topic: { select: { id: true, name: true } },
-      },
+      where: { id: leadId, tenantId },
+      include: { stage: { select: { type: true } } },
     });
     if (!lead) throw new NotFoundException('Lead not found');
-    return lead;
-  }
-
-  async create(
-    tenantId: string,
-    data: {
-      stageId: string;
-      phone: string;
-      name?: string;
-      assignedUserId?: string;
-      metadata?: Record<string, unknown>;
-    },
-  ) {
-    return this.prisma.lead.create({
-      data: {
-        tenantId,
-        stageId: data.stageId,
-        phone: data.phone,
-        name: data.name,
-        assignedUserId: data.assignedUserId,
-        metadata: (data.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
-      },
-      include: {
-        stage: { select: { id: true, name: true, type: true } },
-        assignedUser: { select: { id: true, name: true, email: true } },
-      },
-    });
-  }
-
-  async update(
-    tenantId: string,
-    id: string,
-    data: {
-      stageId?: string;
-      assignedUserId?: string | null;
-      leadScore?: LeadScore;
-      aiActive?: boolean;
-      name?: string;
-      metadata?: Record<string, unknown>;
-      dealAmount?: number | null;
-    },
-  ) {
-    await this.findOne(tenantId, id);
-    const { dealAmount, metadata, ...rest } = data;
     return this.prisma.lead.update({
-      where: { id },
-      data: {
-        ...rest,
-        ...(metadata !== undefined && { metadata: metadata as Prisma.InputJsonValue }),
-        ...(dealAmount !== undefined && { dealAmount: dealAmount == null ? null : dealAmount }),
-      },
+      where: { id: leadId },
+      data: { dealAmount: dealAmount == null ? null : dealAmount },
       include: {
         stage: { select: { id: true, name: true, type: true } },
-        assignedUser: { select: { id: true, name: true, email: true } },
+        topic: { select: { id: true, name: true } },
       },
     });
   }
 
-  async remove(tenantId: string, id: string) {
-    await this.findOne(tenantId, id);
-    return this.prisma.lead.delete({ where: { id } });
-  }
-
-  /** Аналитика по сделкам (этап success): сумма dealAmount за период. */
   async getAnalytics(tenantId: string, period: 'day' | 'week' | 'month' | 'year') {
     const now = new Date();
     const to = new Date(now);
@@ -155,8 +76,7 @@ export class LeadsService {
     } else if (period === 'week' || period === 'month') {
       const byDay = new Map<string, { revenue: number; count: number }>();
       for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        const key = d.toISOString().slice(0, 10);
-        byDay.set(key, { revenue: 0, count: 0 });
+        byDay.set(d.toISOString().slice(0, 10), { revenue: 0, count: 0 });
       }
       for (const l of leads) {
         const key = new Date(l.updatedAt).toISOString().slice(0, 10);
@@ -178,8 +98,7 @@ export class LeadsService {
     } else {
       const byMonth = new Map<string, { revenue: number; count: number }>();
       for (let m = new Date(from.getFullYear(), from.getMonth(), 1); m <= to; m.setMonth(m.getMonth() + 1)) {
-        const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
-        byMonth.set(key, { revenue: 0, count: 0 });
+        byMonth.set(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`, { revenue: 0, count: 0 });
       }
       for (const l of leads) {
         const d = new Date(l.updatedAt);

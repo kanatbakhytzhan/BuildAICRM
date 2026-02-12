@@ -131,6 +131,25 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           </Link>
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
             <Link
+              href="/analytics"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '0.6rem 1rem',
+                margin: '0 0.5rem',
+                borderRadius: 'var(--radius)',
+                color: pathname === '/analytics' ? 'var(--accent)' : 'var(--text)',
+                background: pathname === '/analytics' ? 'var(--accent-light)' : 'transparent',
+                fontWeight: pathname === '/analytics' ? 600 : 400,
+                textDecoration: 'none',
+              }}
+            >
+              <span style={{ opacity: 0.85 }}>📊</span> Аналитика
+            </Link>
+          )}
+          {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+            <Link
               href="/settings"
               style={{
                 display: 'flex',
@@ -179,7 +198,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>BuildCRM</span>
         </Link>
         <span style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 600, color: 'var(--text)' }}>
-          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/settings' ? 'Настройки' : ''}
+          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : ''}
         </span>
       </header>
       <main className="crm-main">
@@ -198,6 +217,12 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           <span style={{ fontSize: 20 }}>👥</span>
           <span>Пользователи</span>
         </Link>
+        {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+          <Link href="/analytics" style={navLink('/analytics', 'Аналитика', '📊', pathname === '/analytics')}>
+            <span style={{ fontSize: 20 }}>📊</span>
+            <span>Аналитика</span>
+          </Link>
+        )}
         {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
           <Link href="/settings" style={navLink('/settings', 'Настройки', '⚙', pathname === '/settings')}>
             <span style={{ fontSize: 20 }}>⚙</span>

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { adminLogs, adminTenants, type AdminTenantDetail, type SystemLog } from '@/lib/api';
+import { adminLogs, adminTenants, adminLeads, adminAnalytics, type AdminTenantDetail, type SystemLog, type AdminLead } from '@/lib/api';
 
-type Tab = 'general' | 'whatsapp' | 'ai' | 'logs';
+type Tab = 'general' | 'whatsapp' | 'ai' | 'deals' | 'logs';
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -17,6 +17,10 @@ export default function ClientDetailPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [summaryLogs, setSummaryLogs] = useState<SystemLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
+  const [successLeads, setSuccessLeads] = useState<AdminLead[]>([]);
+  const [analytics, setAnalytics] = useState<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] } | null>(null);
+  const [dealsLoading, setDealsLoading] = useState(false);
+  const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -41,6 +45,18 @@ export default function ClientDetailPage() {
       .finally(() => setLogsLoading(false));
   }, [id, tab]);
 
+  useEffect(() => {
+    if (tab !== 'deals') return;
+    setDealsLoading(true);
+    Promise.all([adminLeads.listSuccess(id), adminAnalytics.get(id, 'month')])
+      .then(([leadsData, analyticsData]) => {
+        setSuccessLeads(leadsData);
+        setAnalytics(analyticsData);
+      })
+      .catch(console.error)
+      .finally(() => setDealsLoading(false));
+  }, [id, tab]);
+
   if (loading || !tenant) {
     return <div style={{ padding: '2rem' }}>Загрузка...</div>;
   }
@@ -49,8 +65,28 @@ export default function ClientDetailPage() {
     { id: 'general', label: 'Обзор' },
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'ai', label: 'AI-настройки' },
+    { id: 'deals', label: 'Успешные сделки' },
     { id: 'logs', label: 'Логи' },
   ];
+
+  const formatMoney = (n: number) => new Intl.NumberFormat('ru-KZ', { maximumFractionDigits: 0 }).format(n) + ' ₸';
+  const updateDealAmount = async (leadId: string, value: string) => {
+    const num = value.trim() ? Math.round(Number(value)) : null;
+    if (num != null && (Number.isNaN(num) || num < 0)) return;
+    setSavingLeadId(leadId);
+    try {
+      const updated = await adminLeads.updateDealAmount(id, leadId, num ?? null);
+      setSuccessLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
+      if (analytics) {
+        const next = await adminAnalytics.get(id, 'month');
+        setAnalytics(next);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingLeadId(null);
+    }
+  };
 
   return (
     <div style={{ padding: '1.75rem 2.25rem' }}>
@@ -250,6 +286,77 @@ export default function ClientDetailPage() {
           >
             Открыть AI-настройки →
           </Link>
+        </div>
+      )}
+
+      {tab === 'deals' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {dealsLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка…</div>
+          ) : (
+            <>
+              {analytics && (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, var(--accent) 0%, #0ea5e9 100%)',
+                    borderRadius: 16,
+                    padding: '1.5rem',
+                    color: 'white',
+                    boxShadow: '0 4px 14px rgba(19, 127, 236, 0.25)',
+                  }}
+                >
+                  <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 4 }}>Заработано за месяц</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800 }}>{formatMoney(analytics.totalRevenue)}</div>
+                  <div style={{ fontSize: 14, opacity: 0.9, marginTop: 8 }}>{analytics.dealsCount} сделок</div>
+                </div>
+              )}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', background: 'var(--page-bg)' }}>
+                <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>
+                  Успешные лиды — укажите сумму сделки, ₸
+                </div>
+                {successLeads.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Нет лидов в этапе «Успех». В CRM перенесите лидов в этап «Успех», затем здесь можно указать сумму.
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--sidebar-bg)' }}>
+                        <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Клиент / Телефон</th>
+                        <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Тема</th>
+                        <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Сумма сделки, ₸</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {successLeads.map((lead) => (
+                        <tr key={`${lead.id}-${String(lead.dealAmount ?? '')}`} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: 14 }}>
+                            {lead.name || lead.phone}
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lead.phone}</div>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: 13, color: 'var(--text-muted)' }}>{lead.topic?.name ?? '—'}</td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                defaultValue={lead.dealAmount != null ? String(lead.dealAmount) : ''}
+                                onBlur={(e) => updateDealAmount(lead.id, e.target.value)}
+                                placeholder="0"
+                                style={{ width: 120, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', textAlign: 'right' }}
+                              />
+                              {savingLeadId === lead.id && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>…</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 

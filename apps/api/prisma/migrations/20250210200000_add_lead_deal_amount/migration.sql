@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "dealAmount" DECIMAL(14,2);

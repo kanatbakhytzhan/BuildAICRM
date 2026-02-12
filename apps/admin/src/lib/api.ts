@@ -50,6 +50,32 @@ export const adminFollowUps = {
     api<void>(`/admin/tenants/${tenantId}/follow-ups/${id}`, { method: 'DELETE' }),
 };
 
+export type AdminLead = {
+  id: string;
+  phone: string;
+  name: string | null;
+  dealAmount: number | string | null;
+  updatedAt: string;
+  stage: { id: string; name: string; type: string };
+  topic: { id: string; name: string } | null;
+};
+
+export const adminLeads = {
+  listSuccess: (tenantId: string) => api<AdminLead[]>(`/admin/tenants/${tenantId}/leads`),
+  updateDealAmount: (tenantId: string, leadId: string, dealAmount: number | null) =>
+    api<AdminLead>(`/admin/tenants/${tenantId}/leads/${leadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dealAmount }),
+    }),
+};
+
+export const adminAnalytics = {
+  get: (tenantId: string, period: 'day' | 'week' | 'month' | 'year') =>
+    api<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] }>(
+      `/admin/tenants/${tenantId}/analytics?period=${period}`,
+    ),
+};
+
 export type SystemSettings = {
   id: string;
   defaultTimezone: string;
