@@ -296,10 +296,18 @@ export class WebhooksController {
         select: { openaiApiKey: true },
       });
       if (settings?.openaiApiKey?.startsWith('sk-')) {
+        // Если в последних сообщениях лида есть казахские буквы — передаём language: 'kk' для лучшего распознавания
+        const recent = await this.prisma.message.findMany({
+          where: { leadId: lead.id },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: { body: true },
+        });
+        const hasKazakh = recent.some((m) => m.body != null && /[әғқңүұһөі]/i.test(m.body));
         const transcript = await this.transcribe.transcribeFromUrl(
           (mediaData!.url as string).trim(),
           settings.openaiApiKey,
-          {}, // авто-определение языка (рус/каз), подсказка по лексике внутри сервиса
+          { language: hasKazakh ? 'kk' : undefined },
         );
         if (transcript) messageBody = transcript;
       }
