@@ -637,8 +637,11 @@ export class AiService {
       },
     });
 
-    // Schedule follow-up if enabled
-    if (settings?.followUpEnabled && settings?.followUpMessage) {
+    // Schedule follow-up if enabled (не планируем, если клиент доработан и записан на звонок)
+    const meta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
+    const hasCallScheduled = meta.suggestedCallAt != null || meta.suggestedCallNote != null;
+    const isWantsCall = updatedLead.stage?.type === 'wants_call';
+    if (settings?.followUpEnabled && settings?.followUpMessage && !isWantsCall && !hasCallScheduled) {
       const delayMinutes = Number(settings.followUpDelay || '0') || 0;
       await this.followups.scheduleLeadFollowUp({
         tenantId,

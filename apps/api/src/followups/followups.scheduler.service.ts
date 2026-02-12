@@ -98,11 +98,17 @@ export class FollowupsSchedulerService {
 
     const lead = await this.prisma.lead.findFirst({
       where: { id: params.leadId, tenantId: params.tenantId },
+      include: { stage: { select: { type: true } } },
     });
     if (!lead) return;
 
     // Do not send follow-up if AI is disabled for lead
     if (!lead.aiActive) return;
+
+    // Не отправлять follow-up, если клиент доработан и записан на звонок
+    const meta = lead.metadata as Record<string, unknown> | null;
+    const hasCallScheduled = meta?.suggestedCallAt != null || meta?.suggestedCallNote != null;
+    if (lead.stage?.type === 'wants_call' || hasCallScheduled) return;
 
     const now = new Date();
 
