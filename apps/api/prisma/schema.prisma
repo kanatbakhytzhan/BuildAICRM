@@ -43,14 +43,17 @@ model TenantChannel {
 
 // Универсально: темы/категории лидов настраиваются владельцем (панели, ламинат, линолеум или что угодно).
 model TenantTopic {
-  id           String   @id @default(cuid())
-  tenantId     String
-  name         String
-  sortOrder    Int      @default(0)
-  scenarioText String?  @db.Text   // Этап 4: сценарий/инструкция для AI по теме (панели, ламинат и т.д.)
-  mediaUrl     String?  // ссылка на медиа по теме (когда готово)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  sortOrder         Int      @default(0)
+  scenarioText      String?  @db.Text   // Этап 4: сценарий/инструкция для AI по теме (панели, ламинат и т.д.)
+  mediaUrl          String?  // ссылка на медиа по теме (когда готово)
+  welcomeVoiceUrl   String?  // приветственное голосовое по теме
+  welcomeImageUrl   String?  // приветственное фото/прайс по теме
+  addressText       String?  @db.Text   // адрес/местоположение по теме
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   leads   Lead[]

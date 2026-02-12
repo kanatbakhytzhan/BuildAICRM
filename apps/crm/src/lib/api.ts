@@ -28,7 +28,7 @@ export type Tenant = { id: string; name: string };
 export type User = { id: string; email: string; name: string | null; tenantId?: string; role: string; visibleTopicIds?: string[] };
 export type Stage = { id: string; name: string; type: string; order: number; topicId?: string | null; topic?: { id: string; name: string } | null; _count?: { leads: number } };
 export type Channel = { id: string; name: string; externalId: string };
-export type Topic = { id: string; name: string; sortOrder: number; scenarioText?: string | null; mediaUrl?: string | null };
+export type Topic = { id: string; name: string; sortOrder: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; addressText?: string | null };
 export type Lead = {
   id: string;
   stageId: string;
@@ -92,9 +92,9 @@ export const channels = {
 
 export const topics = {
   list: () => api<Topic[]>('/topics'),
-  create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string }) =>
+  create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; addressText?: string | null }) =>
     api<Topic>('/topics', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null }) =>
+  update: (id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; addressText?: string | null }) =>
     api<Topic>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) => api<void>(`/topics/${id}`, { method: 'DELETE' }),
 };
@@ -120,26 +120,11 @@ export const leads = {
 
 export const messages = {
   list: (leadId: string) => api<Message[]>(`/leads/${leadId}/messages`),
-  create: (leadId: string, body: string, mediaUrl?: string) =>
+  create: (leadId: string, body: string) =>
     api<Message>(`/leads/${leadId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ body, ...(mediaUrl && { mediaUrl }) }),
+      body: JSON.stringify({ body }),
     }),
-  uploadMedia: async (leadId: string, file: File): Promise<{ mediaUrl: string }> => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(`${API_URL}/leads/${leadId}/messages/upload`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(err.message || 'Upload failed');
-    }
-    return res.json();
-  },
 };
 
 export const ai = {

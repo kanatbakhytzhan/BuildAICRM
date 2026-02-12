@@ -752,6 +752,45 @@ export class AiService {
       });
       if (!batchText.trim()) continue;
       try {
+        // Приветственные голос/фото/адрес по теме — отправляем до AI ответа
+        const inCount = allMessages.filter((m) => m.direction === MessageDirection.in).length;
+        const isFirstMessage = inCount <= 1;
+        const lower = batchText.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
+        const asksAddress = /адрес|где\s+(вы|находитесь|офис|склад)|местоположение|location|мекенжай|мекен-жай/.test(lower);
+        const asksPhoto = /фото|прайс|каталог|презентация|жоба|сұрақтар|сурактар/.test(lower);
+        const topicKeywords: Record<string, string[]> = {
+          погрузчик: ['погрузчик', 'трактор', 'техника'],
+          трактор: ['погрузчик', 'трактор', 'техника'],
+          ламинат: ['ламинат'],
+          линолеум: ['линолеум'],
+          панел: ['панел', 'сэндвич', 'фасад', 'утеплен', 'дом'],
+        };
+        let topicId = lead.topicId;
+        if (!topicId) {
+          const tenantTopics = await this.prisma.tenantTopic.findMany({ where: { tenantId: lead.tenantId }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } });
+          for (const t of tenantTopics) {
+            const nameNorm = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
+            const keywords = topicKeywords[nameNorm] ?? [nameNorm];
+            if (keywords.some((kw) => lower.includes(kw))) {
+              topicId = t.id;
+              break;
+            }
+          }
+        }
+        const topic = topicId
+          ? await this.prisma.tenantTopic.findFirst({ where: { id: topicId, tenantId: lead.tenantId } })
+          : null;
+        if (topic) {
+          if (isFirstMessage && topic.welcomeVoiceUrl?.trim()) {
+            await this.messages.sendMediaToLead(lead.tenantId, lead.id, topic.welcomeVoiceUrl.trim(), 'audio');
+          }
+          if ((isFirstMessage || asksPhoto) && topic.welcomeImageUrl?.trim()) {
+            await this.messages.sendMediaToLead(lead.tenantId, lead.id, topic.welcomeImageUrl.trim(), 'image');
+          }
+          if (asksAddress && topic.addressText?.trim()) {
+            await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);
+          }
+        }
         const result = await this.handleFakeIncoming({
           tenantId: lead.tenantId,
           leadId: lead.id,

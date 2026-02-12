@@ -12,7 +12,7 @@ export class TopicsService {
     });
   }
 
-  async create(tenantId: string, data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string }) {
+  async create(tenantId: string, data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; addressText?: string | null }) {
     const order = data.sortOrder ?? (await this.prisma.tenantTopic.count({ where: { tenantId } }));
     return this.prisma.tenantTopic.create({
       data: {
@@ -21,11 +21,14 @@ export class TopicsService {
         sortOrder: order,
         scenarioText: data.scenarioText ?? undefined,
         mediaUrl: data.mediaUrl ?? undefined,
+        welcomeVoiceUrl: data.welcomeVoiceUrl ?? undefined,
+        welcomeImageUrl: data.welcomeImageUrl ?? undefined,
+        addressText: data.addressText ?? undefined,
       },
     });
   }
 
-  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null }) {
+  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; addressText?: string | null }) {
     await this.findOne(tenantId, id);
     return this.prisma.tenantTopic.update({
       where: { id },

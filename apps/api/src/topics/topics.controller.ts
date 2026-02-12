@@ -21,6 +21,18 @@ class CreateTopicDto {
   @IsOptional()
   @IsString()
   mediaUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  welcomeVoiceUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  welcomeImageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  addressText?: string | null;
 }
 
 class UpdateTopicDto {
@@ -40,6 +52,18 @@ class UpdateTopicDto {
   @IsOptional()
   @IsString()
   mediaUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  welcomeVoiceUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  welcomeImageUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  addressText?: string | null;
 }
 
 @Controller('topics')
