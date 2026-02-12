@@ -265,6 +265,22 @@ export class AiService {
       at = tomorrow;
       note = 'Завтра днём (14:00)';
     }
+    // пять вечера / завтра в пять / в 17 — рус
+    if (!at && (/в\s+пять\s+вечера|завтра\s+в\s+пять|в\s+17\s*:?\s*00?/.test(lower) || (lower.includes('пять') && lower.includes('вечер')))) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(17, 0, 0, 0);
+      at = tomorrow;
+      note = 'Завтра в 17:00 (пять вечера)';
+    }
+    // казах: ертең сағат беске / кешкі бесте / сағат беске = завтра в 17:00
+    if (!at && (/ертен\s+сагат\s+беске|сагат\s+беске|кешки\s+бесте|кешкі\s+бесте|ертен\s+сағат\s+беске/.test(lower) || (lower.includes('беске') && lower.includes('сагат')) || (lower.includes('бесте') && lower.includes('кешки')))) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(17, 0, 0, 0);
+      at = tomorrow;
+      note = 'Завтра в 17:00';
+    }
 
     if (!at) return null;
     return { at: at.toISOString(), note };
