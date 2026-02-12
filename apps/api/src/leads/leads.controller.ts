@@ -5,7 +5,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
 import { LeadScore } from '@prisma/client';
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsObject } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsObject, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
 
 class CreateLeadDto {
   @IsString()
@@ -53,7 +54,9 @@ class UpdateLeadDto {
   metadata?: Record<string, unknown>;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v != null)
   @IsNumber()
+  @Type(() => Number)
   dealAmount?: number | null;
 }
 
@@ -81,12 +84,6 @@ export class LeadsController {
       userId: user.id,
       visibleTopicIds,
     });
-  }
-
-  @Get('analytics')
-  getAnalytics(@CurrentUser() user: RequestUser, @Query('period') period?: string) {
-    const p = period === 'week' || period === 'month' || period === 'year' ? period : 'day';
-    return this.leadsService.getAnalytics(user.tenantId, p);
   }
 
   @Get(':id')
