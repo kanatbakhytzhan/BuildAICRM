@@ -73,7 +73,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
       >
         <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border)' }}>
           <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--text)' }}>
-            <span style={{ width: 36, height: 36, background: 'var(--accent)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>B</span>
+            <img src="/buildCRM.png" alt="" width={36} height={36} style={{ borderRadius: 8, objectFit: 'contain', display: 'block' }} />
             <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>BuildCRM</span>
           </Link>
         </div>
@@ -194,9 +194,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
       </aside>
       <header className="crm-mobile-header">
         <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--text)' }}>
-          <span className="crm-logo-icon" style={{ width: 40, height: 40, background: 'var(--accent)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </span>
+          <img src="/buildCRM.png" alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'contain', display: 'block', flexShrink: 0 }} />
           <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>BuildCRM</span>
         </Link>
         <span className="crm-mobile-header-title" style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>

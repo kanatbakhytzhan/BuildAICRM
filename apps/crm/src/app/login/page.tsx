@@ -55,7 +55,10 @@ export default function LoginPage() {
           padding: '2rem',
         }}
       >
-        <h1 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem' }}>BuildCRM</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
+          <img src="/buildCRM.png" alt="" width={48} height={48} style={{ borderRadius: 10, objectFit: 'contain' }} />
+          <h1 style={{ margin: 0, fontSize: '1.5rem' }}>BuildCRM</h1>
+        </div>
         {tenantsList.length > 0 && (
           <label style={{ display: 'block', marginBottom: '1rem' }}>
             <span style={{ display: 'block', marginBottom: 4, color: 'var(--text-muted)', fontSize: 14 }}>Организация</span>
