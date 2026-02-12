@@ -153,30 +153,22 @@ export default function LeadsPage() {
     );
   }
 
-  const mobileTabLabels = ['Новые', 'В работе', 'Завершённые'] as const;
-  const mobileTabTypes: Record<number, string[]> = {
-    0: ['new'],
-    1: ['in_progress', 'wants_call'],
-    2: ['success'],
-  };
-  const mobileTabTypeList = mobileTabTypes[mobileTabIndex] ?? [];
-  const mobileLeads = filtered.filter((l) => mobileTabTypeList.includes(l.stage.type));
-  const mobileTabCounts = [0, 1, 2].map((idx) => {
-    const types = mobileTabTypes[idx] ?? [];
-    return filtered.filter((l) => types.includes(l.stage.type)).length;
-  });
+  const mobileStages = stages;
+  const safeMobileTabIndex = mobileStages.length ? Math.min(mobileTabIndex, mobileStages.length - 1) : 0;
+  const mobileTabStage = mobileStages[safeMobileTabIndex];
+  const mobileLeads = mobileTabStage ? (leadsByStage.find((c) => c.id === mobileTabStage.id)?.leads ?? []) : [];
 
   if (isMobile) {
     return (
       <div className="page-content mobile-leads-page" style={{ background: 'var(--bg)', paddingLeft: 0, paddingRight: 0 }}>
         <div className="mobile-leads-tabs-wrap" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 1rem', paddingTop: 4 }}>
           <div style={{ display: 'flex', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {mobileTabLabels.map((label, idx) => {
-              const active = mobileTabIndex === idx;
-              const count = mobileTabCounts[idx] ?? 0;
+            {mobileStages.map((stage, idx) => {
+              const count = leadsByStage.find((c) => c.id === stage.id)?.leads.length ?? 0;
+              const active = safeMobileTabIndex === idx;
               return (
                 <button
-                  key={label}
+                  key={stage.id}
                   type="button"
                   onClick={() => setMobileTabIndex(idx)}
                   style={{
@@ -192,7 +184,7 @@ export default function LeadsPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  {label} ({count})
+                  {stage.name} ({count})
                 </button>
               );
             })}

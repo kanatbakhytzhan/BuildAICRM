@@ -278,9 +278,9 @@ export default function LeadDetailPage() {
           </select>
         </div>
         {lead.stage.type === 'success' && (currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
-          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--success-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--success)' }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Сумма сделки, ₸</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--surface)', borderRadius: 14, border: '2px solid rgba(37,211,102,0.35)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Сумма сделки, ₸</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 type="number"
                 min={0}
@@ -288,28 +288,36 @@ export default function LeadDetailPage() {
                 value={dealAmountInput}
                 onChange={(e) => setDealAmountInput(e.target.value)}
                 placeholder="0"
-                style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+                style={{ flex: '1 1 120px', minWidth: 0, padding: '0.65rem 0.75rem', fontSize: 16, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}
               />
-              <button
-                type="button"
-                disabled={savingDeal}
-                onClick={async () => {
-                  const num = dealAmountInput.trim() ? Math.round(Number(dealAmountInput)) : null;
-                  if (num != null && (Number.isNaN(num) || num < 0)) return;
-                  setSavingDeal(true);
-                  try {
-                    const updated = await leads.update(lead.id, { dealAmount: num ?? null });
-                    setLead(updated as LeadWithMeta);
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setSavingDeal(false);
-                  }
-                }}
-                style={{ padding: '0.5rem 1rem', background: 'var(--success)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600, cursor: savingDeal ? 'wait' : 'pointer' }}
-              >
-                {savingDeal ? '…' : 'Сохранить'}
-              </button>
+              {(() => {
+                const savedStr = lead.dealAmount != null ? String(lead.dealAmount) : '';
+                const isDirty = dealAmountInput !== savedStr;
+                if (!isDirty) return null;
+                return (
+                  <button
+                    type="button"
+                    disabled={savingDeal}
+                    onClick={async () => {
+                      const num = dealAmountInput.trim() ? Math.round(Number(dealAmountInput)) : null;
+                      if (num != null && (Number.isNaN(num) || num < 0)) return;
+                      setSavingDeal(true);
+                      try {
+                        const updated = await leads.update(lead.id, { dealAmount: num ?? null });
+                        setLead(updated as LeadWithMeta);
+                        setDealAmountInput(updated.dealAmount != null ? String(updated.dealAmount) : '');
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setSavingDeal(false);
+                      }
+                    }}
+                    style={{ padding: '0.65rem 1.25rem', background: 'var(--success)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: savingDeal ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {savingDeal ? '…' : 'Сохранить'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         )}
