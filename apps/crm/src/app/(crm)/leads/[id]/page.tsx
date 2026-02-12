@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { leads, messages, pipeline, ai, users, type Lead, type Message, type Stage } from '@/lib/api';
@@ -89,6 +89,11 @@ export default function LeadDetailPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [dealAmountInput, setDealAmountInput] = useState('');
   const [savingDeal, setSavingDeal] = useState(false);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingChunks, setRecordingChunks] = useState<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     users.me().then(setCurrentUser).catch(() => setCurrentUser(null));
@@ -199,13 +204,11 @@ export default function LeadDetailPage() {
     return `${diffDays} дн`;
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lead || !input.trim()) return;
-    const text = input.trim();
+  const sendMessage = async (text: string) => {
+    if (!lead || !text.trim()) return;
     setSending(true);
     try {
-      const msg = await messages.create(lead.id, text);
+      const msg = await messages.create(lead.id, text.trim());
       setMsgs((prev) => [...prev, msg]);
       const nowIso = new Date().toISOString();
       setLead((prev) =>
@@ -213,7 +216,7 @@ export default function LeadDetailPage() {
           ? {
               ...prev,
               lastMessageAt: nowIso,
-              lastMessagePreview: text,
+              lastMessagePreview: text.trim().slice(0, 120),
               noResponseSince: nowIso,
             }
           : prev,
@@ -223,6 +226,49 @@ export default function LeadDetailPage() {
       console.error(err);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendMessage(input);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !lead) return;
+    e.target.value = '';
+    setPlusMenuOpen(false);
+    sendMessage(`📎 Файл: ${file.name}`);
+  };
+
+  const startVoiceRecording = () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      window.alert('Запись голоса не поддерживается в этом браузере.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        setRecordingChunks([]);
+        if (lead) sendMessage('🎤 Голосовое сообщение');
+      };
+      mediaRecorderRef.current = recorder;
+      setRecordingChunks([]);
+      recorder.start();
+      setRecording(true);
+      setPlusMenuOpen(false);
+    }).catch(() => window.alert('Нет доступа к микрофону.'));
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
     }
   };
 
@@ -504,7 +550,7 @@ export default function LeadDetailPage() {
                 {groupMsgs.map((m) => (
                   <div
                     key={m.id}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: m.direction === 'out' ? 'flex-end' : 'flex-start', marginBottom: 8, maxWidth: '85%', alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start' }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: m.direction === 'out' ? 'flex-end' : 'flex-start', marginBottom: 8, maxWidth: '75%', alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start' }}
                   >
                     <div
                       style={{
@@ -529,31 +575,60 @@ export default function LeadDetailPage() {
             ))
           )}
         </div>
-        <footer style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)', padding: '0.75rem 1rem', boxShadow: '0 -1px 4px rgba(0,0,0,0.06)' }}>
+        <footer style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)', padding: '0.75rem 1rem', boxShadow: '0 -1px 4px rgba(0,0,0,0.06)', flexShrink: 0 }}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
             <button type="button" onClick={() => setInput('Давайте назначим встречу, чтобы подробнее обсудить детали.')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(19,127,236,0.3)', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Назначить встречу</button>
             <button type="button" onClick={() => setInput('Отправляю вам презентацию по проекту.')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--sidebar-bg)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Отправить презентацию</button>
             <button type="button" onClick={() => setInput('Подскажите, пожалуйста, какой у вас ориентировочный бюджет?')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--sidebar-bg)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Запросить бюджет</button>
           </div>
           <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            <button type="button" style={{ width: 44, height: 44, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }} aria-label="Добавить">+</button>
-            <div style={{ flex: 1, minWidth: 0, background: 'var(--sidebar-bg)', borderRadius: 12, border: '1px solid transparent', display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Напишите сообщение..."
-                rows={1}
-                style={{ width: '100%', minHeight: 40, maxHeight: 120, padding: '8px 4px', border: 'none', resize: 'none', fontSize: 15, background: 'transparent', color: 'var(--text)' }}
-              />
+            <input ref={fileInputRef} type="file" accept="*/*" style={{ display: 'none' }} onChange={handleFileSelect} />
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setPlusMenuOpen((o) => !o)}
+                style={{ width: 44, height: 44, flexShrink: 0, borderRadius: '50%', border: 'none', background: plusMenuOpen ? 'var(--accent-light)' : 'transparent', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
+                aria-label="Добавить"
+              >
+                +
+              </button>
+              {plusMenuOpen && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: 6, minWidth: 200, zIndex: 20 }}>
+                  <button type="button" onClick={() => { fileInputRef.current?.click(); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--text)', textAlign: 'left' }}>
+                    <span style={{ fontSize: 18 }}>📎</span> Отправить файл
+                  </button>
+                  <button type="button" onClick={startVoiceRecording} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--text)', textAlign: 'left' }}>
+                    <span style={{ fontSize: 18 }}>🎤</span> Голосовое сообщение
+                  </button>
+                </div>
+              )}
             </div>
-            <button
-              type="submit"
-              disabled={sending || !input.trim()}
-              style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: sending || !input.trim() ? 'default' : 'pointer', opacity: sending || !input.trim() ? 0.7 : 1, flexShrink: 0 }}
-              aria-label="Отправить"
-            >
-              ➤
-            </button>
+            {recording ? (
+              <button type="button" onClick={stopVoiceRecording} style={{ flex: 1, minHeight: 44, borderRadius: 12, border: '2px solid var(--danger)', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 1s infinite' }} /> Запись… Нажмите чтобы остановить
+              </button>
+            ) : (
+              <div style={{ flex: 1, minWidth: 0, background: 'var(--sidebar-bg)', borderRadius: 12, border: '1px solid transparent', display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onFocus={() => setPlusMenuOpen(false)}
+                  placeholder="Напишите сообщение..."
+                  rows={1}
+                  style={{ width: '100%', minHeight: 40, maxHeight: 120, padding: '8px 4px', border: 'none', resize: 'none', fontSize: 15, background: 'transparent', color: 'var(--text)' }}
+                />
+              </div>
+            )}
+            {!recording && (
+              <button
+                type="submit"
+                disabled={sending || !input.trim()}
+                style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: sending || !input.trim() ? 'default' : 'pointer', opacity: sending || !input.trim() ? 0.7 : 1, flexShrink: 0 }}
+                aria-label="Отправить"
+              >
+                ➤
+              </button>
+            )}
           </form>
         </footer>
       </div>
@@ -562,12 +637,11 @@ export default function LeadDetailPage() {
 
       {/* Правая колонка: история событий */}
       <aside className="lead-detail-timeline" style={{
-        width: 280,
-        flexShrink: 0,
         borderLeft: '1px solid var(--border)',
         background: 'var(--surface)',
         display: 'flex',
         flexDirection: 'column',
+        minHeight: 0,
       }}>
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
           <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
