@@ -299,6 +299,7 @@ export class WebhooksController {
         const transcript = await this.transcribe.transcribeFromUrl(
           (mediaData!.url as string).trim(),
           settings.openaiApiKey,
+          'kk', // явно казахский — улучшает качество распознавания голоса
         );
         if (transcript) messageBody = transcript;
       }
