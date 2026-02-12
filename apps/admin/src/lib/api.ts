@@ -101,6 +101,7 @@ export type TenantSettings = {
   tenantId: string;
   aiEnabled: boolean;
   openaiApiKey: string | null;
+  openaiModel: string | null;
   chatflowInstanceId: string | null;
   chatflowApiToken: string | null;
   webhookUrl: string | null;

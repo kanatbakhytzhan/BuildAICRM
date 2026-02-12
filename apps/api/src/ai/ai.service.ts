@@ -261,7 +261,7 @@ export class AiService {
 
 Язык: общайся на том же языке, что и клиент. Если пишут на казахском — отвечай на казахском полноценно, без «тупых» шаблонных фраз и без перехода на русский без причины. Казахский поддерживай на уровне деловой переписки.
 
-Голосовые сообщения: если клиент прислал голосовое (в сообщении может быть пометка [Голосовое сообщение] или транскрипт) — обязательно учитывай суть и отвечай по существу, не игнорируй содержание.
+Голосовые сообщения: клиент может писать голосом. В истории сообщений будет либо пометка [Голосовое сообщение] (без текста), либо транскрипт. Если видишь только [Голосовое сообщение] без текста — ты не знаешь точное содержание; ответь вежливо и по делу: поблагодари за обращение, кратко скажи, что компания предлагает (панели, ламинат, линолеум, техника), и спроси, что именно интересует или попроси уточнить вопрос текстом. Если есть транскрипт голосового — учитывай суть и отвечай по существу. Голосовые никогда не игнорируй: всегда давай полезный ответ.
 
 Тема/продукт: у компании есть направления: панели, ламинат, линолеум, погрузчик и др. По первым сообщениям постарайся понять, чем интересуется клиент. Если тема не ясна в первых сообщениях — один раз вежливо спроси: «Подскажите, пожалуйста, что вас интересует: панели, ламинат, линолеум или другая продукция?» Не повторяй этот вопрос многократно.
 
@@ -291,6 +291,7 @@ export class AiService {
     leadId: string;
     systemPrompt: string | null;
     openaiApiKey: string;
+    openaiModel?: string | null;
     currentUserMessage: string;
     leadMetadata?: Prisma.JsonValue | null;
     topicScenario?: string | null;
@@ -316,8 +317,11 @@ export class AiService {
       ...(params.currentUserMessage ? [{ role: 'user' as const, content: params.currentUserMessage }] : []),
     ];
     const client = new OpenAI({ apiKey: params.openaiApiKey });
+    const model = (params.openaiModel?.trim() && ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'].includes(params.openaiModel.trim()))
+      ? params.openaiModel.trim()
+      : 'gpt-4o-mini';
     const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       messages,
       max_tokens: 500,
     });
@@ -548,6 +552,7 @@ export class AiService {
           leadId: lead.id,
           systemPrompt: settings.systemPrompt,
           openaiApiKey: settings.openaiApiKey,
+          openaiModel: settings.openaiModel,
           currentUserMessage: skipSaveIncoming ? '' : text,
           leadMetadata: updatedLead.metadata,
           topicScenario,

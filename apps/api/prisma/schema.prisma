@@ -86,6 +86,7 @@ model TenantSettings {
   tenantId          String   @unique
   aiEnabled         Boolean  @default(true)
   openaiApiKey      String?  // Ключ OpenAI для GPT-ответов (по клиенту)
+  openaiModel       String?  // Модель: gpt-4o-mini (по умолчанию), gpt-4o и др.
   chatflowInstanceId String?
   chatflowApiToken  String?
   webhookUrl        String?

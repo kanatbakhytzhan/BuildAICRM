@@ -13,6 +13,7 @@ export default function ClientAIPage() {
   const [settings, setSettings] = useState<TenantSettings | null>(null);
   const [form, setForm] = useState({
     openaiApiKey: '',
+    openaiModel: 'gpt-4o-mini',
     systemPrompt: '',
     respondFirst: true,
     suggestCall: true,
@@ -36,6 +37,7 @@ export default function ClientAIPage() {
         setSettings(s);
         setForm({
           openaiApiKey: s.openaiApiKey && s.openaiApiKey !== '••••••••' ? s.openaiApiKey : '',
+          openaiModel: s.openaiModel || 'gpt-4o-mini',
           systemPrompt: s.systemPrompt || '',
           respondFirst: s.respondFirst,
           suggestCall: s.suggestCall,
@@ -103,6 +105,21 @@ export default function ClientAIPage() {
           {settings?.openaiApiKey === '••••••••' && !form.openaiApiKey && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Ключ уже задан. Введите новый, чтобы заменить.</div>
           )}
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Модель OpenAI (GPT)</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>gpt-4o — умнее и лучше для голосовых и сложных запросов; gpt-4o-mini — быстрее и дешевле.</p>
+          <select
+            value={form.openaiModel}
+            onChange={(e) => setForm((f) => ({ ...f, openaiModel: e.target.value }))}
+            style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, minWidth: 200 }}
+          >
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gpt-4">gpt-4</option>
+          </select>
         </div>
 
         <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>

@@ -153,6 +153,21 @@ function parseFromQuery(query: Record<string, unknown>): { text: string; phone: 
 
 const DELAY_MS = 30 * 1000; // 30 сек после последнего входящего (Этап 3)
 
+/** По тексту сообщения определяет тему (для ChatFlow: какое голосовое отправить). Возвращает slug: panels | laminate | linoleum | tractor | null. */
+function detectTopicSlug(text: string): string | null {
+  const lower = text.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
+  const keywords: Record<string, string[]> = {
+    panels: ['панел', 'сэндвич', 'фасад', 'утеплен'],
+    laminate: ['ламинат'],
+    linoleum: ['линолеум'],
+    tractor: ['погрузчик', 'трактор', 'техника'],
+  };
+  for (const [slug, kws] of Object.entries(keywords)) {
+    if (kws.some((kw) => lower.includes(kw))) return slug;
+  }
+  return null;
+}
+
 @Controller('webhooks/chatflow')
 export class WebhooksController {
   constructor(
@@ -286,7 +301,8 @@ export class WebhooksController {
       });
     }
 
-    return { received: true, tenantId, reply: null, scheduledIn: 30 };
+    const topic = detectTopicSlug(text);
+    return { received: true, tenantId, reply: null, scheduledIn: 30, topic: topic ?? undefined };
   }
 
   /** GET с параметрами в URL (text/msg + from/phone/jid). */
@@ -344,6 +360,7 @@ export class WebhooksController {
         data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },
       });
     }
-    return { received: true, tenantId, reply: null, scheduledIn: 30 };
+    const topic = detectTopicSlug(text);
+    return { received: true, tenantId, reply: null, scheduledIn: 30, topic: topic ?? undefined };
   }
 }
