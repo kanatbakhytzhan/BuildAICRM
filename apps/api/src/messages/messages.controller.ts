@@ -1,20 +1,14 @@
-import { Body, Controller, Get, Param, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import type { UploadedFileDto } from './messages.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
-import { IsString, IsOptional } from 'class-validator';
+import { IsString } from 'class-validator';
 import { MessageDirection, MessageSource } from '@prisma/client';
 
 class CreateMessageDto {
   @IsString()
   body: string;
-
-  @IsOptional()
-  @IsString()
-  mediaUrl?: string;
 }
 
 @Controller('leads/:leadId/messages')
@@ -27,17 +21,6 @@ export class MessagesController {
     return this.messagesService.listByLead(user.tenantId, leadId);
   }
 
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  async upload(
-    @CurrentUser() user: RequestUser,
-    @Param('leadId') leadId: string,
-    @UploadedFile() file: UploadedFileDto,
-  ) {
-    const mediaUrl = await this.messagesService.saveUpload(user.tenantId, leadId, file);
-    return { mediaUrl };
-  }
-
   @Post()
   create(
     @CurrentUser() user: RequestUser,
@@ -48,7 +31,6 @@ export class MessagesController {
       source: MessageSource.human,
       direction: MessageDirection.out,
       body: dto.body,
-      mediaUrl: dto.mediaUrl,
     });
   }
 }

@@ -90,6 +90,16 @@ export const channels = {
   remove: (id: string) => api<void>(`/channels/${id}`, { method: 'DELETE' }),
 };
 
+export type QuickReplyTemplate = { id: string; label: string; messageText: string; sortOrder: number };
+export const quickReplies = {
+  list: () => api<QuickReplyTemplate[]>('/quick-replies'),
+  create: (data: { label: string; messageText: string; sortOrder?: number }) =>
+    api<QuickReplyTemplate>('/quick-replies', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { label?: string; messageText?: string; sortOrder?: number }) =>
+    api<QuickReplyTemplate>(`/quick-replies/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) => api<void>(`/quick-replies/${id}`, { method: 'DELETE' }),
+};
+
 export const topics = {
   list: () => api<Topic[]>('/topics'),
   create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; addressText?: string | null }) =>
@@ -114,7 +124,16 @@ export const leads = {
   update: (id: string, data: Partial<{ stageId: string; assignedUserId: string | null; leadScore: string; aiActive: boolean; name: string; dealAmount: number | null }>) =>
     api<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   analytics: (period: 'day' | 'week' | 'month' | 'year') =>
-    api<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] }>(`/leads/analytics?period=${period}`),
+    api<{
+      totalRevenue: number;
+      dealsCount: number;
+      avgValue: number;
+      avgDealTimeDays: number;
+      funnel: { stageId: string; stageName: string; count: number }[];
+      byTopic: { topicId: string | null; topicName: string; count: number; revenue: number }[];
+      byPeriod: { label: string; revenue: number; count: number }[];
+      leadsByPeriod: { label: string; count: number }[];
+    }>(`/leads/analytics?period=${period}`),
   remove: (id: string) => api<void>(`/leads/${id}`, { method: 'DELETE' }),
 };
 

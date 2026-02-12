@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { users, channels, topics, pipeline, type Channel, type Topic, type Stage } from '@/lib/api';
+import { users, channels, topics, pipeline, quickReplies, type Channel, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [channelsList, setChannelsList] = useState<Channel[]>([]);
   const [topicsList, setTopicsList] = useState<Topic[]>([]);
   const [stagesList, setStagesList] = useState<Stage[]>([]);
+  const [quickRepliesList, setQuickRepliesList] = useState<QuickReplyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [chName, setChName] = useState('');
   const [chExternalId, setChExternalId] = useState('');
@@ -28,6 +29,11 @@ export default function SettingsPage() {
   const [editTopicWelcomeVoice, setEditTopicWelcomeVoice] = useState('');
   const [editTopicWelcomeImage, setEditTopicWelcomeImage] = useState('');
   const [editTopicAddress, setEditTopicAddress] = useState('');
+  const [qrLabel, setQrLabel] = useState('');
+  const [qrMessageText, setQrMessageText] = useState('');
+  const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
+  const [editQrLabel, setEditQrLabel] = useState('');
+  const [editQrMessageText, setEditQrMessageText] = useState('');
 
   const canEdit = currentUser?.role === 'owner' || currentUser?.role === 'rop';
 
@@ -40,11 +46,12 @@ export default function SettingsPage() {
       setLoading(false);
       return;
     }
-    Promise.all([channels.list(), topics.list(), pipeline.list()])
-      .then(([ch, top, st]) => {
+    Promise.all([channels.list(), topics.list(), pipeline.list(), quickReplies.list()])
+      .then(([ch, top, st, qr]) => {
         setChannelsList(ch);
         setTopicsList(top);
         setStagesList(st);
+        setQuickRepliesList(qr);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -55,6 +62,7 @@ export default function SettingsPage() {
     channels.list().then(setChannelsList);
     topics.list().then(setTopicsList);
     pipeline.list().then(setStagesList);
+    quickReplies.list().then(setQuickRepliesList);
   };
 
   if (!currentUser) {
@@ -212,6 +220,82 @@ export default function SettingsPage() {
           />
           <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>
             {saving ? '…' : 'Добавить тему'}
+          </button>
+        </form>
+      </section>
+
+      {/* Шаблоны быстрых ответов */}
+      <section style={{ marginBottom: '2rem', padding: '1.25rem', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+        <h2 style={{ margin: '0 0 1rem', fontSize: '1.125rem', fontWeight: 700 }}>Шаблоны быстрых ответов</h2>
+        <p style={{ margin: '0 0 1rem', fontSize: 13, color: 'var(--text-muted)' }}>
+          Кнопки, которые менеджер вставляет в чат одним кликом. Примеры: «Отправляю КП», «Скоро перезвоню», «Когда вам удобно?»
+        </p>
+        <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: '1rem' }}>
+          {quickRepliesList.map((qr) => (
+            <li key={qr.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 500 }}>{qr.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>→ {qr.messageText.length > 40 ? qr.messageText.slice(0, 40) + '…' : qr.messageText}</span>
+              <button type="button" onClick={() => { setEditQr(qr); setEditQrLabel(qr.label); setEditQrMessageText(qr.messageText); }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Удалить шаблон?')) {
+                    quickReplies.remove(qr.id).then(loadAll).catch((e) => setError(e.message));
+                  }
+                }}
+                style={{ fontSize: 12, color: 'var(--danger)' }}
+              >
+                Удалить
+              </button>
+            </li>
+          ))}
+        </ul>
+        {editQr && (
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Редактировать шаблон</div>
+            <input type="text" placeholder="Текст кнопки (короткий)" value={editQrLabel} onChange={(e) => setEditQrLabel(e.target.value)} style={{ width: '100%', maxWidth: 280, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+            <textarea placeholder="Текст сообщения (полный)" value={editQrMessageText} onChange={(e) => setEditQrMessageText(e.target.value)} rows={3} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setEditQr(null)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>Отмена</button>
+              <button type="button" onClick={() => { setSaving(true); quickReplies.update(editQr.id, { label: editQrLabel, messageText: editQrMessageText }).then(loadAll).then(() => setEditQr(null)).catch((e) => setError(e.message)).finally(() => setSaving(false)); }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
+            </div>
+          </div>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError('');
+            setSaving(true);
+            quickReplies
+              .create({ label: qrLabel, messageText: qrMessageText })
+              .then(() => {
+                setQrLabel('');
+                setQrMessageText('');
+                loadAll();
+              })
+              .catch((e) => setError(e.message))
+              .finally(() => setSaving(false));
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}
+        >
+          <input
+            type="text"
+            placeholder="Текст кнопки (например: Отправляю КП)"
+            value={qrLabel}
+            onChange={(e) => setQrLabel(e.target.value)}
+            required
+            style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 260 }}
+          />
+          <textarea
+            placeholder="Текст сообщения"
+            value={qrMessageText}
+            onChange={(e) => setQrMessageText(e.target.value)}
+            required
+            rows={2}
+            style={{ width: '100%', maxWidth: 400, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', resize: 'vertical' }}
+          />
+          <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>
+            {saving ? '…' : 'Добавить шаблон'}
           </button>
         </form>
       </section>

@@ -16,6 +16,7 @@ import { HealthModule } from './health/health.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ChannelsModule } from './channels/channels.module';
 import { TopicsModule } from './topics/topics.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TopicsModule } from './topics/topics.module';
     MessagesModule,
     ChannelsModule,
     TopicsModule,
+    QuickRepliesModule,
     AdminModule,
     SystemModule,
     AiModule,

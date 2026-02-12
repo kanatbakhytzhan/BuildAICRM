@@ -18,7 +18,16 @@ function formatMoney(n: number) {
 export default function AnalyticsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string; name: string | null } | null>(null);
   const [period, setPeriod] = useState<Period>('month');
-  const [data, setData] = useState<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] } | null>(null);
+  const [data, setData] = useState<{
+    totalRevenue: number;
+    dealsCount: number;
+    avgValue: number;
+    avgDealTimeDays: number;
+    funnel: { stageId: string; stageName: string; count: number }[];
+    byTopic: { topicId: string | null; topicName: string; count: number; revenue: number }[];
+    byPeriod: { label: string; revenue: number; count: number }[];
+    leadsByPeriod: { label: string; count: number }[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +50,7 @@ export default function AnalyticsPage() {
   }
 
   const maxRevenue = data?.byPeriod?.length ? Math.max(...data.byPeriod.map((p) => p.revenue), 1) : 1;
-  const avgValue = data && data.dealsCount > 0 ? Math.round(data.totalRevenue / data.dealsCount) : 0;
+  const maxLeads = data?.leadsByPeriod?.length ? Math.max(...data.leadsByPeriod.map((p) => p.count), 1) : 1;
   const weeklyTarget = 500000; // плейсхолдер цели
   const targetPercent = weeklyTarget > 0 ? Math.min(100, Math.round((data?.totalRevenue ?? 0) / weeklyTarget * 100)) : 0;
 
@@ -119,13 +128,74 @@ export default function AnalyticsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--sidebar-bg)', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--tag-demo-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tag-demo-text)', fontSize: 18 }}>◷</div>
                   <div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{formatMoney(avgValue)}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{formatMoney(data.avgValue ?? 0)}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>Средний чек</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--sidebar-bg)', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)', fontSize: 18 }}>⏱</div>
+                  <div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{data.avgDealTimeDays ?? 0} дн.</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>Среднее время сделки</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Воронка */}
+          {data.funnel && data.funnel.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Воронка</h3>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+                {data.funnel.map((s) => (
+                  <div key={s.stageId} style={{ flexShrink: 0, minWidth: 120, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent)' }}>{s.count}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{s.stageName}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Конверсия по темам */}
+          {data.byTopic && data.byTopic.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Конверсия по темам</h3>
+              <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '12px 20px', background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  <div>Тема</div>
+                  <div style={{ textAlign: 'center' }}>Сделок</div>
+                  <div style={{ textAlign: 'right' }}>Выручка</div>
+                </div>
+                {data.byTopic.map((t) => (
+                  <div key={t.topicId ?? 'none'} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, padding: '14px 20px', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>{t.topicName}</div>
+                    <div style={{ textAlign: 'center', color: 'var(--text)' }}>{t.count}</div>
+                    <div style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text)' }}>{formatMoney(t.revenue)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* График новых лидов */}
+          {data.leadsByPeriod && data.leadsByPeriod.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Новые лиды по периоду</h3>
+              <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120 }}>
+                  {data.leadsByPeriod.map((p, i) => (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: '100%', maxWidth: 24, height: Math.max(8, (p.count / maxLeads) * 100), background: 'var(--accent)', borderRadius: 4 }} />
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 60 }}>{p.label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{p.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Performance Breakdown */}
           <div style={{ marginBottom: 32 }}>

@@ -155,7 +155,7 @@ BuildCRM понимает payload вида `{ "instanceId": "...", "sender": { "
 - **ChatFlow API Token** (token из личного кабинета ChatFlow)
 - **Instance ID** (instance_id инстанса)
 
-Тогда наш вебхук после генерации ответа сам вызовет **GET** `https://app.chatflow.kz/api/v1/send-text?token=...&instance_id=...&jid=НОМЕР@s.whatsapp.net&msg=ОТВЕТ`. Голосовые сообщения из CRM отправляются через **send-media** (type=ptt, url=публичный URL файла). Для этого на сервере API должна быть задана переменная **API_PUBLIC_URL** (или RENDER_EXTERNAL_URL на Render), чтобы ChatFlow мог скачать аудио по URL. В конструкторе ChatFlow достаточно **одного шага**: при входящем сообщении → **POST на наш вебхук** (тело с текстом и номером). Отправлять сообщение вручную в конструкторе не нужно.
+Тогда наш вебхук после генерации ответа сам вызовет **GET** `https://app.chatflow.kz/api/v1/send-text?token=...&instance_id=...&jid=НОМЕР@s.whatsapp.net&msg=ОТВЕТ`. В конструкторе ChatFlow достаточно **одного шага**: при входящем сообщении → **POST на наш вебхук** (тело с текстом и номером). Отправлять сообщение вручную в конструкторе не нужно.
 
 ### Вариант B: Отправка через конструктор ChatFlow
 

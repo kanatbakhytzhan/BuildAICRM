@@ -14,14 +14,29 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users              User[]
-  pipelineStages     PipelineStage[]
-  leads              Lead[]
-  settings           TenantSettings?
-  followUpTemplates  FollowUpTemplate[]
-  systemLogs         SystemLog[]
-  channels           TenantChannel[]
-  topics             TenantTopic[]
+  users               User[]
+  pipelineStages      PipelineStage[]
+  leads               Lead[]
+  settings            TenantSettings?
+  followUpTemplates   FollowUpTemplate[]
+  quickReplyTemplates QuickReplyTemplate[]
+  systemLogs          SystemLog[]
+  channels            TenantChannel[]
+  topics              TenantTopic[]
+}
+
+model QuickReplyTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  label       String   // короткий текст кнопки
+  messageText String   @db.Text // полный текст для вставки в чат
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // Универсально: у тенанта несколько каналов (WhatsApp-номера). Лид привязан к каналу.
