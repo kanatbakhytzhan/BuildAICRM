@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { leads, messages, pipeline, ai, users, quickReplies, type Lead, type Message, type Stage } from '@/lib/api';
+import { IconClock, IconRobot } from '@/components/Icons';
 
 function MobileTimelineSection({ eventHistory, scoreValue }: { eventHistory: { type: string; createdAt: string; title: string; desc: string; color: string }[]; scoreValue: number }) {
   const [open, setOpen] = useState(false);
@@ -494,7 +495,7 @@ export default function LeadDetailPage() {
               {handoffLoading ? '…' : lead.aiActive ? 'Забрать диалог' : 'Вернуть AI'}
             </button>
             {lead.noResponseSince && (
-              <span style={{ fontSize: 12, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}>🕐 {formatSilence(lead.noResponseSince)}</span>
+              <span style={{ fontSize: 12, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}><IconClock width={14} height={14} style={{ flexShrink: 0 }} /> {formatSilence(lead.noResponseSince)}</span>
             )}
           </div>
           {handoffError && <span style={{ fontSize: 12, color: 'var(--danger)' }}>{handoffError}</span>}
@@ -609,7 +610,7 @@ export default function LeadDetailPage() {
                     {new Date(ev.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: ev.color === 'blue' ? 'var(--accent)' : 'var(--text)' }}>
-                    {ev.type === 'ai' && <span style={{ marginRight: 4 }} aria-hidden>🤖</span>}
+                    {ev.type === 'ai' && <span style={{ marginRight: 4, display: 'inline-flex', alignItems: 'center' }} aria-hidden><IconRobot width={16} height={16} /></span>}
                     {ev.title}
                   </h4>
                   {ev.type === 'stage' ? (

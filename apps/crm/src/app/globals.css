@@ -107,6 +107,12 @@ input, select, textarea {
     max-width: 1200px;
     margin: 0 auto;
   }
+  .page-content.leads-page-full {
+    max-width: none;
+    margin: 0;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 
 /* CRM root: на мобилке колонка (шапка — контент — низ. нав) */
@@ -302,6 +308,14 @@ input, select, textarea {
 .tag-high-priority {
   background: var(--tag-high-bg);
   color: var(--tag-high-text);
+}
+
+/* Канбан заявок: на десктопе колонки заполняют ширину, при нехватке места — горизонтальный скролл */
+.leads-kanban-scroll.kanban-scroll {
+  overflow-x: auto;
+}
+.leads-kanban-columns {
+  min-width: min-content;
 }
 
 /* Кнопка «+ Добавить» в колонке канбана */

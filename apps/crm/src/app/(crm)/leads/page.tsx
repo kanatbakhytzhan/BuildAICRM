@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { pipeline, leads, topics, type Stage, type Lead, type Topic } from '@/lib/api';
+import { IconSearch, IconSettings, IconRobot, IconClock, IconPhone, IconMessage, IconRefresh, IconMoreVertical, IconAlert, IconCheck } from '@/components/Icons';
 
 type ViewMode = 'kanban' | 'list';
 
@@ -241,11 +242,11 @@ export default function LeadsPage() {
                           fontSize: 18,
                         }}
                       >
-                        {statusOk ? '✓' : '◷'}
+                        {statusOk ? <IconCheck width={18} height={18} /> : <IconClock width={18} height={18} />}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)' }}>
-                      <span style={{ opacity: 0.9 }}>{lead.stage.type === 'wants_call' ? '📞' : '💬'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center' }}>{lead.stage.type === 'wants_call' ? <IconPhone width={16} height={16} /> : <IconMessage width={16} height={16} />}</span>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview}</span>
                     </div>
                   </div>
@@ -259,12 +260,12 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="page-content" style={{ background: 'var(--bg)', paddingLeft: 0, paddingRight: 0 }}>
-      {/* Тулбар: на мобилке компактный стек */}
+    <div className="page-content leads-page-full" style={{ background: 'var(--bg)', paddingLeft: 0, paddingRight: 0 }}>
+      {/* Тулбар */}
       <div className="leads-toolbar-mobile" style={{
         background: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
-        padding: '1rem 1rem 1.25rem',
+        padding: '1rem 1.5rem 1.25rem',
         marginLeft: 0,
         marginRight: 0,
       }}>
@@ -274,18 +275,15 @@ export default function LeadsPage() {
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           gap: '1rem',
-          maxWidth: 1200,
-          margin: '0 auto',
-          paddingLeft: '0',
-          paddingRight: '0',
+          width: '100%',
         }}>
           <div>
             <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>Заявки</h1>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)' }}>Воронка продаж WhatsApp</p>
           </div>
-          <div className="leads-toolbar-row2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: 540 }}>
+          <div className="leads-toolbar-row2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: 560 }}>
             <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0, maxWidth: '100%' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 16 }} aria-hidden>🔍</span>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden><IconSearch /></span>
               <input
                 type="search"
                 placeholder="Поиск по имени, телефону..."
@@ -318,7 +316,7 @@ export default function LeadsPage() {
               }}
               title="Фильтры"
             >
-              <span aria-hidden>⚙</span> Фильтры
+              <IconSettings style={{ flexShrink: 0 }} /> Фильтры
             </button>
             <select
               value={stageFilter}
@@ -416,10 +414,10 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 1rem 1rem', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ padding: '0 1.5rem 1rem', width: '100%' }}>
       {viewMode === 'kanban' && (
-        <div className="leads-kanban-scroll kanban-scroll" style={{ background: 'var(--bg)' }}>
-          <div style={{ display: 'flex', gap: '1rem', minHeight: 400, alignItems: 'flex-start', minWidth: 'max-content' }}>
+        <div className="leads-kanban-scroll kanban-scroll" style={{ background: 'var(--bg)', width: '100%' }}>
+          <div className="leads-kanban-columns" style={{ display: 'flex', gap: '1rem', minHeight: 400, alignItems: 'flex-start', width: '100%' }}>
           {leadsByStage.map((col) => {
             const isUrgent = col.type === 'wants_call';
             const isAiColumn = col.type === 'in_progress';
@@ -429,10 +427,10 @@ export default function LeadsPage() {
                 key={col.id}
                 className="kanban-column"
                 style={{
-                  minWidth: 280,
-                  maxWidth: 320,
+                  minWidth: 260,
+                  flex: '1 1 0',
+                  maxWidth: 360,
                   flexShrink: 0,
-                  width: '100%',
                   background: isAiColumn ? 'linear-gradient(to bottom, rgba(19,127,236,0.08), transparent)' : 'var(--surface)',
                   border: '1px solid var(--border)',
                   borderLeft: isAiColumn ? '4px solid var(--accent)' : isUrgent ? '4px solid var(--danger)' : '1px solid var(--border)',
@@ -450,7 +448,7 @@ export default function LeadsPage() {
                   paddingLeft: 4,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {isAiColumn && <span style={{ fontSize: 20, color: 'var(--accent)' }} title="AI ведёт диалог">🤖</span>}
+                    {isAiColumn && <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }} title="AI ведёт диалог"><IconRobot width={20} height={20} /></span>}
                     <h3 style={{
                       margin: 0,
                       fontWeight: 700,
@@ -466,7 +464,7 @@ export default function LeadsPage() {
                       borderRadius: 999,
                     }}>{col.leads.length}</span>
                   </div>
-                  <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 4, cursor: 'pointer', fontSize: 18 }} aria-label="Ещё">⋮</button>
+                  <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Ещё"><IconMoreVertical width={18} height={18} /></button>
                 </div>
                 <div
                   className={`kanban-column-drop-zone ${isDropOver ? 'drag-over' : ''}`}
@@ -518,7 +516,7 @@ export default function LeadsPage() {
                         <Link href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative', zIndex: 1 }} onClick={(e) => isMoving && e.preventDefault()}>
                           {isUrgent && (lead.metadata as Record<string, unknown> | null)?.suggestedCallAt != null && (
                             <div style={{ marginBottom: 6, padding: '0.4rem 0.5rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span aria-hidden>📞</span>
+                              <IconPhone width={14} height={14} style={{ flexShrink: 0 }} />
                               {(lead.metadata as Record<string, unknown>).suggestedCallNote != null
                                 ? String((lead.metadata as Record<string, unknown>).suggestedCallNote)
                                 : new Date(String((lead.metadata as Record<string, unknown>).suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -533,11 +531,11 @@ export default function LeadsPage() {
                               )}
                               {noResp ? (
                                 <div style={{ fontSize: 11, color: 'var(--warning)', fontWeight: 500, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <span aria-hidden>🕐</span> {noResp}
+                                  <IconClock width={14} height={14} style={{ flexShrink: 0 }} /> {noResp}
                                 </div>
                               ) : isUrgent && lead.leadScore === 'hot' ? (
                                 <div style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 600, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <span aria-hidden>⚠</span> Требует внимания
+                                  <IconAlert width={14} height={14} style={{ flexShrink: 0 }} /> Требует внимания
                                 </div>
                               ) : (
                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{timeAgoExtended(lead.lastMessageAt)}</div>
@@ -555,7 +553,7 @@ export default function LeadsPage() {
                               fontSize: 14,
                               flexShrink: 0,
                             }} title={lead.aiActive ? 'AI ведёт диалог' : 'WhatsApp'}>
-                              {lead.aiActive ? '🔄' : '💬'}
+                              {lead.aiActive ? <IconRefresh width={14} height={14} /> : <IconMessage width={14} height={14} />}
                             </div>
                           </div>
                           {lead.aiActive && lead.aiNotes && (
@@ -567,7 +565,7 @@ export default function LeadsPage() {
                           )}
                           {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
                             <div style={{ marginBottom: 6, padding: '0.35rem 0.5rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', fontSize: 11, color: 'var(--warning-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span aria-hidden>📞</span>
+                              <IconPhone width={12} height={12} style={{ flexShrink: 0 }} />
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {lead.metadata.suggestedCallNote != null
                                   ? String(lead.metadata.suggestedCallNote)

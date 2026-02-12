@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { users } from '@/lib/api';
+import { IconClipboard, IconAlert, IconUsers, IconChart, IconSettings } from '@/components/Icons';
 
 export default function CrmLayout(props: { children: React.ReactNode }) {
   const { children } = props;
@@ -93,7 +94,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
               textDecoration: 'none',
             }}
           >
-            <span style={{ opacity: 0.85 }}>📋</span> Заявки
+            <IconClipboard style={{ flexShrink: 0, opacity: 0.9 }} /> Заявки
           </Link>
           <Link
             href="/priorities"
@@ -110,7 +111,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
               textDecoration: 'none',
             }}
           >
-            <span style={{ opacity: 0.85 }}>⚠</span> Приоритеты
+            <IconAlert style={{ flexShrink: 0, opacity: 0.9 }} /> Приоритеты
           </Link>
           <Link
             href="/users"
@@ -127,7 +128,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
               textDecoration: 'none',
             }}
           >
-            <span style={{ opacity: 0.85 }}>👥</span> Пользователи
+            <IconUsers style={{ flexShrink: 0, opacity: 0.9 }} /> Пользователи
           </Link>
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
             <Link
@@ -145,7 +146,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
                 textDecoration: 'none',
               }}
             >
-              <span style={{ opacity: 0.85 }}>📊</span> Аналитика
+              <IconChart style={{ flexShrink: 0, opacity: 0.9 }} /> Аналитика
             </Link>
           )}
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
@@ -164,7 +165,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
                 textDecoration: 'none',
               }}
             >
-              <span style={{ opacity: 0.85 }}>⚙</span> Настройки
+              <IconSettings style={{ flexShrink: 0, opacity: 0.9 }} /> Настройки
             </Link>
           )}
         </nav>
