@@ -111,23 +111,24 @@ export class MessagesService {
           const apiBase = getApiPublicUrl();
 
           try {
-            if (isAudio && apiBase) {
-              // Отправляем голосовое как аудио/голос в WhatsApp (send-media), чтобы приходило голосовым
-              const mediaUrl = new URL('https://app.chatflow.kz/api/v1/send-media');
-              mediaUrl.searchParams.set('token', settings.chatflowApiToken);
-              mediaUrl.searchParams.set('instance_id', instanceId);
-              mediaUrl.searchParams.set('jid', jid);
-              mediaUrl.searchParams.set('url', `${apiBase}${data.mediaUrl}`);
-              mediaUrl.searchParams.set('type', 'ptt'); // voice message in WhatsApp
-              await fetch(mediaUrl.toString());
-            }
-            if (!isAudio && data.body?.trim()) {
+            // Текст всегда отправляем (чтобы хоть что-то доходило, если send-media нет или нет API_PUBLIC_URL)
+            if (data.body?.trim()) {
               const url = new URL('https://app.chatflow.kz/api/v1/send-text');
               url.searchParams.set('token', settings.chatflowApiToken);
               url.searchParams.set('instance_id', instanceId);
               url.searchParams.set('jid', jid);
               url.searchParams.set('msg', data.body.trim());
               await fetch(url.toString());
+            }
+            // Дополнительно пробуем отправить голосовое как аудио (если есть публичный URL)
+            if (isAudio && apiBase) {
+              const mediaUrl = new URL('https://app.chatflow.kz/api/v1/send-media');
+              mediaUrl.searchParams.set('token', settings.chatflowApiToken);
+              mediaUrl.searchParams.set('instance_id', instanceId);
+              mediaUrl.searchParams.set('jid', jid);
+              mediaUrl.searchParams.set('url', `${apiBase}${data.mediaUrl}`);
+              mediaUrl.searchParams.set('type', 'ptt');
+              await fetch(mediaUrl.toString());
             }
           } catch {
             // не падаем: сообщение уже сохранено в CRM
