@@ -232,319 +232,330 @@ export default function LeadDetailPage() {
     );
   }
 
+  const lastSeenText = lead.lastMessageAt
+    ? (() => {
+        const d = new Date(lead.lastMessageAt);
+        const now = new Date();
+        const today = now.getDate() === d.getDate() && now.getMonth() === d.getMonth() && now.getFullYear() === d.getFullYear();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const isYesterday = yesterday.getDate() === d.getDate() && yesterday.getMonth() === d.getMonth() && yesterday.getFullYear() === d.getFullYear();
+        const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        if (today) return `Был сегодня в ${time}`;
+        if (isYesterday) return `Был вчера в ${time}`;
+        return `Был ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} в ${time}`;
+      })()
+    : 'Нет активности';
+
+  const msgsByDate = (() => {
+    const groups: { dateLabel: string; msgs: Message[] }[] = [];
+    const sorted = [...msgs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    let currentLabel = '';
+    let currentGroup: Message[] = [];
+    for (const m of sorted) {
+      const d = new Date(m.createdAt);
+      const now = new Date();
+      const today = now.getDate() === d.getDate() && now.getMonth() === d.getMonth() && now.getFullYear() === d.getFullYear();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const isYesterday = yesterday.getDate() === d.getDate() && yesterday.getMonth() === d.getMonth() && yesterday.getFullYear() === d.getFullYear();
+      const label = today ? 'Сегодня' : isYesterday ? 'Вчера' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+      if (label !== currentLabel) {
+        if (currentGroup.length) groups.push({ dateLabel: currentLabel, msgs: currentGroup });
+        currentLabel = label;
+        currentGroup = [];
+      }
+      currentGroup.push(m);
+    }
+    if (currentGroup.length) groups.push({ dateLabel: currentLabel, msgs: currentGroup });
+    return groups;
+  })();
+
+  const shortId = `#${lead.id.slice(-8).toUpperCase()}`;
+
   return (
     <div className="page-content lead-detail-root">
-      <div className="lead-detail-sidebar">
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Link href="/leads" style={{ fontSize: 14, color: 'var(--text-muted)', minHeight: 'auto' }}>← Заявки</Link>
+      <div className="lead-detail-sidebar" style={{ background: 'var(--sidebar-bg)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Детали лида</h2>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>ID: {shortId}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
-          <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18 }}>
-            {(lead.name || lead.phone).slice(0, 2).toUpperCase()}
-          </span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '1.125rem' }}>{lead.name || lead.phone}</div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>{lead.phone}</div>
-          </div>
-        </div>
-        <a href={`tel:${lead.phone}`} style={{ display: 'inline-block', marginBottom: '0.5rem', padding: '0.5rem 1rem', background: 'var(--success)', color: 'white', borderRadius: 'var(--radius)', textDecoration: 'none', fontWeight: 500 }}>
-          Позвонить
-        </a>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          style={{ display: 'inline-block', marginBottom: '1rem', padding: '0.5rem 1rem', background: 'var(--danger)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 500, cursor: deleting ? 'wait' : 'pointer' }}
-        >
-          {deleting ? 'Удаление…' : 'Удалить лида'}
-        </button>
-        <div style={{ marginBottom: '1rem' }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Стадия</div>
-          <select
-            value={lead.stageId}
-            onChange={(e) => updateStage(e.target.value)}
-            disabled={saving}
-            style={{
-              width: '100%',
-              padding: '0.5rem 0.75rem',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              background: 'var(--surface)',
-            }}
-          >
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-        {lead.stage.type === 'success' && (currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
-          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--surface)', borderRadius: 14, border: '2px solid rgba(37,211,102,0.35)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Сумма сделки, ₸</div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={dealAmountInput}
-                onChange={(e) => setDealAmountInput(e.target.value)}
-                placeholder="0"
-                style={{ flex: '1 1 120px', minWidth: 0, padding: '0.65rem 0.75rem', fontSize: 16, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}
-              />
-              {(() => {
-                const savedStr = lead.dealAmount != null ? String(lead.dealAmount) : '';
-                const isDirty = dealAmountInput !== savedStr;
-                if (!isDirty) return null;
-                return (
-                  <button
-                    type="button"
-                    disabled={savingDeal}
-                    onClick={async () => {
-                      const num = dealAmountInput.trim() ? Math.round(Number(dealAmountInput)) : null;
-                      if (num != null && (Number.isNaN(num) || num < 0)) return;
-                      setSavingDeal(true);
-                      try {
-                        const updated = await leads.update(lead.id, { dealAmount: num ?? null });
-                        setLead(updated as LeadWithMeta);
-                        setDealAmountInput(updated.dealAmount != null ? String(updated.dealAmount) : '');
-                      } catch (e) {
-                        console.error(e);
-                      } finally {
-                        setSavingDeal(false);
-                      }
-                    }}
-                    style={{ padding: '0.65rem 1.25rem', background: 'var(--success)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: savingDeal ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    {savingDeal ? '…' : 'Сохранить'}
-                  </button>
-                );
-              })()}
+        <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ color: 'var(--accent)', fontSize: 18 }}>📞</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Телефон</span>
             </div>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.phone}</p>
           </div>
-        )}
-        <div style={{ fontSize: 14, marginBottom: 4 }}>
-          <span style={{ color: 'var(--text-muted)' }}>Оценка: </span>
-          {scoreLabel(lead.leadScore)}
-        </div>
-        <div style={{ fontSize: 14, marginBottom: 4 }}>
-          <span style={{ color: 'var(--text-muted)' }}>Ведёт: </span>
-          {lead.aiActive ? 'AI' : lead.assignedUser?.name || lead.assignedUser?.email || '—'}
-        </div>
-        {lead.channel && (
-          <div style={{ fontSize: 14, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Пишет на номер: </span>
-            {lead.channel.name}
-          </div>
-        )}
-        {lead.topic && (
-          <div style={{ fontSize: 14, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Тема: </span>
-            {lead.topic.name}
-          </div>
-        )}
-        {lead.aiNotes && (
-          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: 13 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Решения AI</div>
-            <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{lead.aiNotes}</div>
-          </div>
-        )}
-        {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
-          <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius)', border: '1px solid var(--warning)' }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>📞 Позвонить</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-              {lead.metadata.suggestedCallNote != null
-                ? String(lead.metadata.suggestedCallNote)
-                : lead.metadata.suggestedCallAt != null
-                  ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                  : ''}
+          {lead.channel && (
+            <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ color: 'var(--accent)', fontSize: 18 }}>💬</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Канал</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.channel.name}</p>
             </div>
-          </div>
-        ) : null}
-        {lead.metadata && typeof lead.metadata === 'object' && Object.keys(lead.metadata).length > 0 && (() => {
-          const m = lead.metadata as Record<string, unknown>;
-          const items: { label: string; value: string }[] = [];
-          if (m.city != null) items.push({ label: 'Город', value: String(m.city) });
-          if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
-            const d = m.dimensions as { length?: number; width?: number };
-            if (d.length != null && d.width != null) items.push({ label: 'Размеры', value: `${d.length} × ${d.width} м` });
-          }
-          if (m.foundation != null) items.push({ label: 'Фундамент', value: String(m.foundation) });
-          if (m.windowsCount != null) items.push({ label: 'Окон', value: String(m.windowsCount) });
-          if (m.doorsCount != null) items.push({ label: 'Дверей', value: String(m.doorsCount) });
-          if (m.suggestedCallNote != null) items.push({ label: 'Перезвонить', value: String(m.suggestedCallNote) });
-          else if (m.suggestedCallAt != null) items.push({ label: 'Перезвонить', value: new Date(String(m.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) });
-          if (items.length === 0) return null;
-          return (
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Данные</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {items.map(({ label, value }) => (
-                  <div key={label} style={{ fontSize: 14, display: 'flex', gap: 8 }}>
-                    <span style={{ color: 'var(--text-muted)', minWidth: 90 }}>{label}:</span>
-                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{value}</span>
-                  </div>
-                ))}
+          )}
+          {lead.topic && (
+            <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ color: 'var(--accent)', fontSize: 18 }}>🏷</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Тема</span>
+              </div>
+              <div style={{ paddingLeft: 26, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ padding: '4px 10px', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 12, fontWeight: 600, borderRadius: 999 }}>{lead.topic.name}</span>
               </div>
             </div>
-          );
-        })()}
-      </div>
-
-      <div className="lead-detail-chat">
-        {/* Верхняя панель чата — как в референсе */}
-        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--accent)' }}>
-              {(lead.name || lead.phone).slice(0, 1).toUpperCase()}
-            </span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{lead.name || lead.phone}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{lead.aiActive ? 'AI анализирует контекст…' : 'Диалог ведёт менеджер'}</div>
+          )}
+          <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Оценка лида</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--success)' }}>{scoreLabel(lead.leadScore)} ({scoreNum(lead.leadScore)})</span>
+            </div>
+            <div style={{ width: '100%', height: 8, background: 'var(--border)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${scoreNum(lead.leadScore)}%`, height: '100%', background: 'var(--success)', borderRadius: 999 }} />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ padding: '4px 8px', borderRadius: 999, fontSize: 12, background: 'var(--success-bg)', color: 'var(--success)', fontWeight: 600 }}>
-              SCORE {scoreNum(lead.leadScore)}/100
-            </span>
-            {lead.noResponseSince && (
-              <span style={{ fontSize: 12, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span aria-hidden>🕐</span> Клиент молчит: {formatSilence(lead.noResponseSince)}
-              </span>
-            )}
+          {lead.stage.type === 'success' && (currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+            <div style={{ padding: '1rem', background: 'var(--surface)', borderRadius: 14, border: '2px solid rgba(37,211,102,0.35)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Сумма сделки, ₸</div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={dealAmountInput}
+                  onChange={(e) => setDealAmountInput(e.target.value)}
+                  placeholder="0"
+                  style={{ flex: '1 1 120px', minWidth: 0, padding: '0.65rem 0.75rem', fontSize: 16, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}
+                />
+                {(() => {
+                  const savedStr = lead.dealAmount != null ? String(lead.dealAmount) : '';
+                  const isDirty = dealAmountInput !== savedStr;
+                  if (!isDirty) return null;
+                  return (
+                    <button
+                      type="button"
+                      disabled={savingDeal}
+                      onClick={async () => {
+                        const num = dealAmountInput.trim() ? Math.round(Number(dealAmountInput)) : null;
+                        if (num != null && (Number.isNaN(num) || num < 0)) return;
+                        setSavingDeal(true);
+                        try {
+                          const updated = await leads.update(lead.id, { dealAmount: num ?? null });
+                          setLead(updated as LeadWithMeta);
+                          setDealAmountInput(updated.dealAmount != null ? String(updated.dealAmount) : '');
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setSavingDeal(false);
+                        }
+                      }}
+                      style={{ padding: '0.65rem 1.25rem', background: 'var(--success)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: savingDeal ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {savingDeal ? '…' : 'Сохранить'}
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+          <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Стадия</div>
+            <select
+              value={lead.stageId}
+              onChange={(e) => updateStage(e.target.value)}
+              disabled={saving}
+              style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', fontSize: 14 }}
+            >
+              {stages.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Ведёт: </span>
+            <span style={{ color: 'var(--text)' }}>{lead.aiActive ? 'AI' : lead.assignedUser?.name || lead.assignedUser?.email || '—'}</span>
+          </div>
+          {lead.aiNotes && (
+            <div style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: 13 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Решения AI</div>
+              <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{lead.aiNotes}</div>
+            </div>
+          )}
+          {lead.metadata && typeof lead.metadata === 'object' && (lead.metadata.suggestedCallAt != null || lead.metadata.suggestedCallNote != null) ? (
+            <div style={{ padding: '0.75rem', background: 'var(--warning-bg)', borderRadius: 8, border: '1px solid var(--warning)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>📞 Позвонить</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                {lead.metadata.suggestedCallNote != null
+                  ? String(lead.metadata.suggestedCallNote)
+                  : lead.metadata.suggestedCallAt != null
+                    ? new Date(String(lead.metadata.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : ''}
+              </div>
+            </div>
+          ) : null}
+          {lead.metadata && typeof lead.metadata === 'object' && Object.keys(lead.metadata).length > 0 && (() => {
+            const m = lead.metadata as Record<string, unknown>;
+            const items: { label: string; value: string }[] = [];
+            if (m.city != null) items.push({ label: 'Город', value: String(m.city) });
+            if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
+              const d = m.dimensions as { length?: number; width?: number };
+              if (d.length != null && d.width != null) items.push({ label: 'Размеры', value: `${d.length} × ${d.width} м` });
+            }
+            if (m.foundation != null) items.push({ label: 'Фундамент', value: String(m.foundation) });
+            if (m.windowsCount != null) items.push({ label: 'Окон', value: String(m.windowsCount) });
+            if (m.doorsCount != null) items.push({ label: 'Дверей', value: String(m.doorsCount) });
+            if (m.suggestedCallNote != null) items.push({ label: 'Перезвонить', value: String(m.suggestedCallNote) });
+            else if (m.suggestedCallAt != null) items.push({ label: 'Перезвонить', value: new Date(String(m.suggestedCallAt)).toLocaleString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) });
+            if (items.length === 0) return null;
+            return (
+              <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Данные</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {items.map(({ label, value }) => (
+                    <div key={label} style={{ fontSize: 14, display: 'flex', gap: 8 }}>
+                      <span style={{ color: 'var(--text-muted)', minWidth: 90 }}>{label}:</span>
+                      <span style={{ color: 'var(--text)', fontWeight: 500 }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+        <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+          <Link href="/leads" style={{ display: 'inline-block', marginBottom: 8, fontSize: 14, color: 'var(--accent)' }}>← Заявки</Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontSize: 14, fontWeight: 600, cursor: deleting ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            ✎ Удалить лида
+          </button>
+        </div>
+      </div>
+
+      <div className="lead-detail-chat" style={{ background: '#e5ddd5', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+        <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '1rem 1.25rem', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', border: '2px solid var(--surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, color: 'var(--accent)' }}>
+                  {(lead.name || lead.phone).slice(0, 2).toUpperCase()}
+                </span>
+                <span style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, background: 'var(--success)', border: '2px solid var(--surface)', borderRadius: '50%' }} />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>{lead.name || lead.phone}</h1>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{lastSeenText}</p>
+              </div>
+            </div>
+            <a
+              href={`tel:${lead.phone}`}
+              style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', boxShadow: '0 4px 12px rgba(19,127,236,0.35)', flexShrink: 0 }}
+              aria-label="Позвонить"
+            >
+              📞
+            </a>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0, background: 'var(--sidebar-bg)', padding: 6, borderRadius: 10 }}>
+              <select
+                value={lead.stageId}
+                onChange={(e) => updateStage(e.target.value)}
+                disabled={saving}
+                style={{ width: '100%', padding: '0.5rem 2rem 0.5rem 0.75rem', border: 'none', borderRadius: 8, background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--text)', cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%234c739a\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center', backgroundSize: 18 }}
+              >
+                {stages.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.25rem 10px' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: lead.leadScore === 'hot' ? 'var(--danger)' : 'var(--warning)' }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{scoreLabel(lead.leadScore)} приоритет</span>
+            </div>
             <button
               type="button"
               onClick={handleHandoff}
               disabled={handoffLoading}
-              style={{
-                padding: '0.45rem 0.9rem',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: lead.aiActive ? '#fee2e2' : 'var(--accent-light)',
-                color: lead.aiActive ? 'var(--danger)' : 'var(--accent)',
-                fontSize: 13,
-                fontWeight: 600,
-                opacity: handoffLoading ? 0.7 : 1,
-              }}
+              style={{ padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid var(--border)', background: lead.aiActive ? 'var(--danger-bg)' : 'var(--accent-light)', color: lead.aiActive ? 'var(--danger)' : 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: handoffLoading ? 'wait' : 'pointer' }}
             >
               {handoffLoading ? '…' : lead.aiActive ? 'Забрать диалог' : 'Вернуть AI'}
             </button>
-            {handoffError && (
-              <span style={{ fontSize: 12, color: 'var(--danger)', width: '100%' }}>{handoffError}</span>
+            {lead.noResponseSince && (
+              <span style={{ fontSize: 12, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}>🕐 {formatSilence(lead.noResponseSince)}</span>
             )}
           </div>
-        </div>
-        <div style={{ flex: 1, padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'linear-gradient(to bottom, #f5eee7, #f6f7f8)' }}>
-          <div style={{ flex: 1, overflow: 'auto', paddingRight: 4 }}>
-            {msgs.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', margin: 0 }}>Нет сообщений</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {msgs.map((m) => (
+          {handoffError && <span style={{ fontSize: 12, color: 'var(--danger)' }}>{handoffError}</span>}
+        </header>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {msgs.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>Нет сообщений</p>
+          ) : (
+            msgsByDate.map(({ dateLabel, msgs: groupMsgs }) => (
+              <div key={dateLabel}>
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+                  <span style={{ background: 'var(--sidebar-bg)', color: 'var(--text-muted)', fontSize: 12, padding: '4px 12px', borderRadius: 999, fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>{dateLabel}</span>
+                </div>
+                {groupMsgs.map((m) => (
                   <div
                     key={m.id}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: m.direction === 'out' ? 'flex-end' : 'flex-start',
-                      maxWidth: '100%',
-                    }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: m.direction === 'out' ? 'flex-end' : 'flex-start', marginBottom: 8, maxWidth: '85%', alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start' }}
                   >
                     <div
                       style={{
-                        maxWidth: '80%',
-                        padding: '0.6rem 0.9rem',
-                        borderRadius: m.direction === 'out' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                        background:
-                          m.source === 'ai'
-                            ? '#dcfce7'
-                            : m.direction === 'out'
-                            ? 'var(--accent)'
-                            : 'var(--surface)',
-                        color: m.source === 'ai' ? '#14532d' : m.direction === 'out' ? '#f9fafb' : 'var(--text)',
-                        border: m.direction === 'in' && m.source !== 'ai' ? '1px solid var(--border)' : 'none',
-                        boxShadow: 'var(--shadow-sm)',
-                        fontSize: 14,
+                        padding: '0.75rem 1rem',
+                        borderRadius: m.direction === 'out' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                        background: m.direction === 'out' ? 'var(--accent)' : 'var(--surface)',
+                        color: m.direction === 'out' ? '#fff' : 'var(--text)',
+                        boxShadow: m.direction === 'out' ? '0 1px 4px rgba(0,0,0,0.12)' : '0 1px 2px rgba(0,0,0,0.06)',
+                        fontSize: 15,
+                        lineHeight: 1.45,
                       }}
                     >
                       {m.body}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {new Date(m.createdAt).toLocaleString('ru-RU')} ·{' '}
-                      {m.direction === 'in' ? 'Клиент' : m.source === 'ai' ? 'AI' : 'Менеджер'}
-                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: m.direction === 'out' ? 0 : 4, paddingRight: m.direction === 'out' ? 4 : 0, display: 'flex', alignItems: 'center', gap: 4, flexDirection: m.direction === 'out' ? 'row-reverse' : 'row' }}>
+                      {new Date(m.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      {m.direction === 'out' && <span style={{ opacity: 0.8 }}>✓✓</span>}
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-          {/* Быстрые действия и поле ввода как в референсе */} 
-          <div style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-lg)', padding: '0.75rem 0.75rem 0.9rem', border: '1px solid rgba(148,163,184,0.3)', boxShadow: 'var(--shadow-sm)' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', overflowX: 'auto' }}>
-              <button
-                type="button"
-                onClick={() => setInput('Давайте назначим встречу, чтобы подробнее обсудить детали.')}
-                style={{ whiteSpace: 'nowrap', padding: '0.35rem 0.8rem', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, color: 'var(--text-muted)' }}
-              >
-                Назначить встречу
-              </button>
-              <button
-                type="button"
-                onClick={() => setInput('Отправляю вам презентацию по проекту.')}
-                style={{ whiteSpace: 'nowrap', padding: '0.35rem 0.8rem', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, color: 'var(--text-muted)' }}
-              >
-                Отправить презентацию
-              </button>
-              <button
-                type="button"
-                onClick={() => setInput('Подскажите, пожалуйста, какой у вас ориентировочный бюджет?')}
-                style={{ whiteSpace: 'nowrap', padding: '0.35rem 0.8rem', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, color: 'var(--text-muted)' }}
-              >
-                Запросить бюджет
-              </button>
-            </div>
-            <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-              <button type="button" style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', padding: 6 }} aria-label="Добавить вложение">
-                +
-              </button>
-              <div style={{ flex: 1, borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', background: 'var(--surface)', overflow: 'hidden' }}>
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Напишите сообщение..."
-                  rows={1}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: 'none',
-                    resize: 'none',
-                    fontSize: 14,
-                    background: 'transparent',
-                  }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={sending || !input.trim()}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
-                  border: 'none',
-                  background: 'var(--accent)',
-                  color: 'white',
-                  fontWeight: 600,
-                  opacity: sending || !input.trim() ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-                aria-label="Отправить"
-              >
-                ➤
-              </button>
-            </form>
-          </div>
+            ))
+          )}
         </div>
+        <footer style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)', padding: '0.75rem 1rem', boxShadow: '0 -1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            <button type="button" onClick={() => setInput('Давайте назначим встречу, чтобы подробнее обсудить детали.')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(19,127,236,0.3)', background: 'var(--accent-light)', color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Назначить встречу</button>
+            <button type="button" onClick={() => setInput('Отправляю вам презентацию по проекту.')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--sidebar-bg)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Отправить презентацию</button>
+            <button type="button" onClick={() => setInput('Подскажите, пожалуйста, какой у вас ориентировочный бюджет?')} style={{ whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--sidebar-bg)', color: 'var(--text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Запросить бюджет</button>
+          </div>
+          <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            <button type="button" style={{ width: 44, height: 44, flexShrink: 0, borderRadius: '50%', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }} aria-label="Добавить">+</button>
+            <div style={{ flex: 1, minWidth: 0, background: 'var(--sidebar-bg)', borderRadius: 12, border: '1px solid transparent', display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Напишите сообщение..."
+                rows={1}
+                style={{ width: '100%', minHeight: 40, maxHeight: 120, padding: '8px 4px', border: 'none', resize: 'none', fontSize: 15, background: 'transparent', color: 'var(--text)' }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: sending || !input.trim() ? 'default' : 'pointer', opacity: sending || !input.trim() ? 0.7 : 1, flexShrink: 0 }}
+              aria-label="Отправить"
+            >
+              ➤
+            </button>
+          </form>
+        </footer>
       </div>
 
       <MobileTimelineSection eventHistory={eventHistory} scoreValue={scoreNum(lead.leadScore)} />
