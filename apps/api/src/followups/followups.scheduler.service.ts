@@ -143,6 +143,16 @@ export class FollowupsSchedulerService {
       body: params.messageText,
     });
 
+    const sent = await this.messages.sendToLead(params.tenantId, params.leadId, params.messageText);
+    if (!sent) {
+      await this.logs.log({
+        tenantId: params.tenantId,
+        category: 'ai',
+        message: `Follow-up не отправлен в WhatsApp для лида ${params.leadId} (ChatFlow)`,
+        meta: { leadId: params.leadId },
+      });
+    }
+
     await this.prisma.lead.update({
       where: { id: params.leadId },
       data: {

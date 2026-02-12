@@ -151,7 +151,7 @@ function parseFromQuery(query: Record<string, unknown>): { text: string; phone: 
   return { text: text.trim(), phone, channelExternalId };
 }
 
-const DELAY_MS = 60 * 1000; // 1 мин после последнего входящего (Этап 3)
+const DELAY_MS = 30 * 1000; // 30 сек после последнего входящего (Этап 3)
 
 @Controller('webhooks/chatflow')
 export class WebhooksController {
@@ -286,7 +286,7 @@ export class WebhooksController {
       });
     }
 
-    return { received: true, tenantId, reply: null, scheduledIn: 60 };
+    return { received: true, tenantId, reply: null, scheduledIn: 30 };
   }
 
   /** GET с параметрами в URL (text/msg + from/phone/jid). */
@@ -344,6 +344,6 @@ export class WebhooksController {
         data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },
       });
     }
-    return { received: true, tenantId, reply: null, scheduledIn: 60 };
+    return { received: true, tenantId, reply: null, scheduledIn: 30 };
   }
 }
