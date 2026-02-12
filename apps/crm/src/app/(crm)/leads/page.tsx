@@ -6,6 +6,18 @@ import { pipeline, leads, topics, type Stage, type Lead, type Topic } from '@/li
 
 type ViewMode = 'kanban' | 'list';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia('(max-width: 768px)');
+    const upd = () => setIsMobile(m.matches);
+    upd();
+    m.addEventListener('change', upd);
+    return () => m.removeEventListener('change', upd);
+  }, []);
+  return isMobile;
+}
+
 function scoreNum(lead: Lead): number {
   if (lead.leadScore === 'hot') return 90;
   if (lead.leadScore === 'warm') return 60;
@@ -69,6 +81,8 @@ export default function LeadsPage() {
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const [mobileTabIndex, setMobileTabIndex] = useState(0);
 
   const load = () => {
     setLoading(true);
@@ -136,6 +150,110 @@ export default function LeadsPage() {
   if (loading && stages.length === 0) {
     return (
       <div className="page-content" style={{ background: 'var(--bg)' }}>Загрузка заявок...</div>
+    );
+  }
+
+  const mobileTabs = stages.slice(0, 3);
+  const mobileTabStage = mobileTabs[mobileTabIndex];
+  const mobileLeads = mobileTabStage ? leadsByStage.find((c) => c.id === mobileTabStage.id)?.leads ?? [] : [];
+
+  if (isMobile) {
+    return (
+      <div className="page-content mobile-leads-page" style={{ background: 'var(--bg)', paddingLeft: 0, paddingRight: 0 }}>
+        <div className="mobile-leads-tabs-wrap" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 1rem', paddingTop: 4 }}>
+          <div style={{ display: 'flex', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {mobileTabs.map((stage, idx) => {
+              const count = leadsByStage.find((c) => c.id === stage.id)?.leads.length ?? 0;
+              const active = mobileTabIndex === idx;
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  onClick={() => setMobileTabIndex(idx)}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    marginRight: 8,
+                    border: 'none',
+                    background: 'none',
+                    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                    color: active ? 'var(--text)' : 'var(--text-muted)',
+                    fontWeight: active ? 700 : 500,
+                    fontSize: 14,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {stage.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ padding: '1rem', paddingBottom: 'calc(1.25rem + var(--bottom-nav-h) + var(--safe-bottom))' }}>
+          {mobileLeads.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 1rem', fontSize: 14 }}>Нет заявок в этой стадии</div>
+          ) : (
+            mobileLeads.map((lead) => {
+              const statusOk = !lead.noResponseSince && lead.lastMessageAt;
+              const preview = lead.lastMessagePreview || (lead.stage.type === 'wants_call' ? 'Жду звонка!' : 'Когда можем обсудить?');
+              const initials = (lead.name || lead.phone).slice(0, 2).toUpperCase();
+              return (
+                <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 12 }}>
+                  <div
+                    className="mobile-lead-card"
+                    style={{
+                      background: 'var(--surface)',
+                      borderRadius: 16,
+                      padding: '1rem 1.25rem',
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                      border: '1px solid var(--border)',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                          {initials}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {lead.name || lead.phone}
+                          </div>
+                          <div style={{ marginTop: 4, fontSize: 13 }}>
+                            {lead.leadScore === 'hot' && <span style={{ color: 'var(--tag-high-text)', fontWeight: 600 }}>«Горячий»</span>}
+                            {lead.leadScore === 'warm' && <span style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '2px 8px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Тёплый</span>}
+                            {lead.leadScore === 'cold' && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Холодный</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: '50%',
+                          background: statusOk ? 'var(--success-bg)' : 'var(--warning-bg)',
+                          color: statusOk ? 'var(--success)' : 'var(--warning)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          fontSize: 18,
+                        }}
+                      >
+                        {statusOk ? '✓' : '◷'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)' }}>
+                      <span style={{ opacity: 0.9 }}>{lead.stage.type === 'wants_call' ? '📞' : '💬'}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </div>
     );
   }
 

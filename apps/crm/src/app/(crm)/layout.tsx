@@ -42,16 +42,16 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
     );
   }
 
-  const navLink = (href: string, label: string, icon: string, active: boolean) => ({
+  const navLink = (href: string, _label: string, active: boolean) => ({
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    padding: '0.5rem 1rem',
-    borderRadius: 'var(--radius)',
+    gap: 4,
+    padding: '0.5rem 0.25rem',
+    borderRadius: 10,
     color: active ? 'var(--accent)' : 'var(--text-muted)',
-    background: active ? 'var(--accent-light)' : 'transparent',
+    background: 'transparent',
     fontWeight: active ? 600 : 400,
     textDecoration: 'none',
     fontSize: 11,
@@ -193,11 +193,13 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
         </div>
       </aside>
       <header className="crm-mobile-header">
-        <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'var(--text)' }}>
-          <span style={{ width: 36, height: 36, background: 'var(--accent)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16 }}>B</span>
-          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>BuildCRM</span>
+        <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--text)' }}>
+          <span className="crm-logo-icon" style={{ width: 40, height: 40, background: 'var(--accent)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
+          <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>BuildCRM</span>
         </Link>
-        <span style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 600, color: 'var(--text)' }}>
+        <span className="crm-mobile-header-title" style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
           {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : ''}
         </span>
       </header>
@@ -205,27 +207,37 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
         {children}
       </main>
       <nav className="crm-bottom-nav" aria-label="Навигация">
-        <Link href="/leads" style={navLink('/leads', 'Заявки', '📋', pathname.startsWith('/leads'))}>
-          <span style={{ fontSize: 20 }}>📋</span>
+        <Link href="/leads" style={navLink('/leads', 'Заявки', pathname.startsWith('/leads'))}>
+          <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+          </span>
           <span>Заявки</span>
         </Link>
-        <Link href="/priorities" style={navLink('/priorities', 'Приоритет', '!', pathname === '/priorities')}>
-          <span style={{ fontSize: 20 }}>!</span>
-          <span>Приоритет</span>
+        <Link href="/priorities" style={navLink('/priorities', 'Приоритеты', pathname === '/priorities')}>
+          <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span>Приоритеты</span>
         </Link>
-        <Link href="/users" style={navLink('/users', 'Пользователи', '👥', pathname === '/users')}>
-          <span style={{ fontSize: 20 }}>👥</span>
-          <span>Пользователи</span>
+        <Link href="/users" style={navLink('/users', 'Пользователи', pathname === '/users')}>
+          <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+          <span>Пользователь</span>
         </Link>
         {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
-          <Link href="/analytics" style={navLink('/analytics', 'Аналитика', '📊', pathname === '/analytics')}>
-            <span style={{ fontSize: 20 }}>📊</span>
+          <Link href="/analytics" style={navLink('/analytics', 'Аналитика', pathname === '/analytics')}>
+            <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </span>
             <span>Аналитика</span>
           </Link>
         )}
         {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
-          <Link href="/settings" style={navLink('/settings', 'Настройки', '⚙', pathname === '/settings')}>
-            <span style={{ fontSize: 20 }}>⚙</span>
+          <Link href="/settings" style={navLink('/settings', 'Настройки', pathname === '/settings')}>
+            <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            </span>
             <span>Настройки</span>
           </Link>
         )}

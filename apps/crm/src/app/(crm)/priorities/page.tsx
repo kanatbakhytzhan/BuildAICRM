@@ -26,6 +26,11 @@ function isLongNoResponse(noResponseSince: string | null): boolean {
   return hours >= 24;
 }
 
+function noResponseDays(noResponseSince: string | null): number {
+  if (!noResponseSince) return 0;
+  return Math.floor((Date.now() - new Date(noResponseSince).getTime()) / 86400000);
+}
+
 function EmptyState({ icon, title, sub }: { icon: string; title: string; sub: string }) {
   return (
     <div className="empty-state">
@@ -68,87 +73,87 @@ export default function PrioritiesPage() {
     );
   }
 
-  const cardStyle: React.CSSProperties = {
+  const priorityCardBase: React.CSSProperties = {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '1.25rem 1rem',
-    marginBottom: '0.75rem',
-    boxShadow: 'var(--shadow-sm)',
+    borderRadius: 16,
+    padding: '1rem 1.25rem',
+    marginBottom: 12,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
   };
 
   return (
-    <div className="page-content" style={{ background: 'var(--bg)' }}>
-      <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700, marginBottom: '1.5rem' }}>
+    <div className="page-content" style={{ background: 'var(--bg)', paddingBottom: 'calc(1.25rem + var(--bottom-nav-h) + var(--safe-bottom))' }}>
+      <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.25rem', color: 'var(--text)' }}>
         Приоритеты
       </h1>
 
       <section className="priority-section" style={{ marginBottom: '1.5rem' }}>
-        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Просит звонок
-          {wantsCall.length > 0 && (
-            <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: 'var(--danger-bg)', color: 'var(--danger)' }}>
-              {wantsCall.length} NEW
-            </span>
-          )}
+        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+          Нужен звонок ({wantsCall.length})
         </h2>
         {wantsCall.length === 0 ? (
           <EmptyState icon="📞" title="Нет заявок" sub="Новые заявки появятся здесь" />
         ) : (
           wantsCall.map((lead) => (
-            <div key={lead.id} className="priority-card" style={{ ...cardStyle, borderLeft: '4px solid var(--danger)', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '1.0625rem' }}>{lead.name || lead.phone}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 13, color: 'var(--text-muted)' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, background: 'var(--accent-light)', color: 'var(--accent)' }}>
-                    {lead.stage.name}
-                  </span>
-                  <span>Ждёт: {waitingMins(lead.lastMessageAt)}м</span>
+            <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <div style={{ ...priorityCardBase }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                    {(lead.name || lead.phone).slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{lead.name || lead.phone}</div>
+                    <div style={{ marginTop: 4, fontSize: 13 }}>
+                      {lead.leadScore === 'hot' ? <span style={{ color: 'var(--tag-high-text)', fontWeight: 600 }}>«Горячий»</span> : <span style={{ color: 'var(--text-muted)' }}>• Тёплый</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                      <span>📞</span>
+                      <span>Перезвоните мне!</span>
+                    </div>
+                  </div>
                 </div>
+                <a
+                  href={`tel:${lead.phone}`}
+                  style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0, fontSize: 18 }}
+                  title="Позвонить"
+                >
+                  ✓
+                </a>
               </div>
-              <a
-                href={`tel:${lead.phone}`}
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: '50%',
-                  background: 'var(--success)',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textDecoration: 'none',
-                  flexShrink: 0,
-                }}
-                title="Позвонить"
-              >
-                <span style={{ fontSize: 22 }}>📞</span>
-              </a>
-            </div>
+            </Link>
           ))
         )}
       </section>
 
       <section className="priority-section" style={{ marginBottom: '1.5rem' }}>
-        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
           Горячие лиды
         </h2>
         {hotLeads.length === 0 ? (
           <EmptyState icon="🔥" title="Нет горячих лидов" sub="Лиды с высокой оценкой появятся здесь" />
         ) : (
           hotLeads.map((lead) => (
-            <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="priority-card" style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '1.0625rem' }}>{lead.name || lead.phone}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, background: 'var(--success-bg)', color: 'var(--success)' }}>
-                      Горячий
-                    </span>
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Активность: {timeAgo(lead.lastMessageAt)}</span>
+            <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <div style={{ ...priorityCardBase }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                    {(lead.name || lead.phone).slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{lead.name || lead.phone}</div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: 'var(--tag-high-text)', fontWeight: 600 }}>«Горячий»</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                      <span>💬</span>
+                      <span>Жду ответа...</span>
+                    </div>
                   </div>
                 </div>
-                <span style={{ color: 'var(--text-muted)', fontSize: 20 }}>›</span>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--warning-bg)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 }}>◷</div>
               </div>
             </Link>
           ))
@@ -156,22 +161,33 @@ export default function PrioritiesPage() {
       </section>
 
       <section className="priority-section">
-        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Долго без ответа
+        <h2 className="priority-section-title" style={{ margin: '0 0 0.75rem', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+          Давние без ответа
         </h2>
         {longNoResponse.length === 0 ? (
           <EmptyState icon="✅" title="Всё под контролем" sub="Нет заявок без ответа больше 24 часов" />
         ) : (
-          longNoResponse.map((lead) => (
-            <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="priority-card" style={cardStyle}>
-                <div style={{ fontWeight: 600, fontSize: '1.0625rem' }}>{lead.name || lead.phone}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                  Без ответа с {lead.noResponseSince ? new Date(lead.noResponseSince).toLocaleDateString('ru-RU') : '—'}
+          longNoResponse.map((lead) => {
+            const days = noResponseDays(lead.noResponseSince);
+            return (
+              <Link key={lead.id} href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                <div style={{ ...priorityCardBase }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                      {(lead.name || lead.phone).slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{lead.name || lead.phone}</div>
+                      <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                        {days === 1 ? '1 день без ответа' : `${days} дней без ответа`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>📞</div>
                 </div>
-              </div>
-            </Link>
-          ))
+              </Link>
+            );
+          })
         )}
       </section>
     </div>
