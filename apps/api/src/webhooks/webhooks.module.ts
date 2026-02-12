@@ -4,9 +4,11 @@ import { SystemModule } from '../system/system.module';
 import { MessagesModule } from '../messages/messages.module';
 import { FollowupsModule } from '../followups/followups.module';
 import { WebhooksController } from './webhooks.controller';
+import { TranscribeService } from './transcribe.service';
 
 @Module({
   imports: [PrismaModule, SystemModule, MessagesModule, FollowupsModule],
   controllers: [WebhooksController],
+  providers: [TranscribeService],
 })
 export class WebhooksModule {}

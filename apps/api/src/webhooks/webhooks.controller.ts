@@ -4,6 +4,7 @@ import { SystemLogsService } from '../system/system.logs.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { FollowupsSchedulerService } from '../followups/followups.scheduler.service';
+import { TranscribeService } from './transcribe.service';
 
 /** Нормализует номер телефона до цифр (для поиска лида). */
 function normalizePhone(v: unknown): string {
@@ -175,6 +176,7 @@ export class WebhooksController {
     private prisma: PrismaService,
     private messages: MessagesService,
     private followups: FollowupsSchedulerService,
+    private transcribe: TranscribeService,
   ) {}
 
   /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
@@ -283,11 +285,30 @@ export class WebhooksController {
       await this.prisma.lead.update({ where: { id: lead.id }, data: { name: senderName } });
     }
 
+    let messageBody = text;
+    const mediaData = body.mediaData as Record<string, unknown> | undefined;
+    const isVoice = text === '[Голосовое сообщение]' && mediaData && typeof mediaData === 'object'
+      && typeof mediaData.type === 'string' && mediaData.type.toLowerCase() === 'audio'
+      && typeof mediaData.url === 'string' && (mediaData.url as string).trim();
+    if (isVoice) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { openaiApiKey: true },
+      });
+      if (settings?.openaiApiKey?.startsWith('sk-')) {
+        const transcript = await this.transcribe.transcribeFromUrl(
+          (mediaData!.url as string).trim(),
+          settings.openaiApiKey,
+        );
+        if (transcript) messageBody = transcript;
+      }
+    }
+
     // Этап 3: сохраняем входящее, откладываем ответ на 1 мин (пачка сообщений → один ответ).
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
       direction: MessageDirection.in,
-      body: text,
+      body: messageBody,
     });
     this.followups.cancelLeadFollowUps(lead.id);
 
@@ -301,7 +322,7 @@ export class WebhooksController {
       });
     }
 
-    const topic = detectTopicSlug(text);
+    const topic = detectTopicSlug(messageBody);
     return { received: true, tenantId, reply: null, scheduledIn: 30, topic: topic ?? undefined };
   }
 
