@@ -9,7 +9,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'BuildCRM Global Admin',
+  title: 'SKAI CRM Admin',
   description: 'Панель глобального администратора',
 };
 

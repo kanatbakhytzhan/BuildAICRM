@@ -1,6 +1,6 @@
 {
-  "name": "BuildCRM",
-  "short_name": "BuildCRM",
+  "name": "SKAI CRM",
+  "short_name": "SKAI CRM",
   "description": "CRM с воронкой продаж",
   "start_url": "/",
   "display": "standalone",
@@ -8,7 +8,7 @@
   "theme_color": "#137fec",
   "orientation": "portrait-primary",
   "icons": [
-    { "src": "/buildCRM.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/buildCRM.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "/logoskaicrmm.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logoskaicrmm.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ]
 }

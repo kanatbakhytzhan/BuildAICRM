@@ -74,8 +74,8 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
       >
         <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border)' }}>
           <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--text)' }}>
-            <img src="/buildCRM.png" alt="" width={36} height={36} style={{ borderRadius: 8, objectFit: 'contain', display: 'block' }} />
-            <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>BuildCRM</span>
+            <img src="/logoskaicrmm.png" alt="" width={36} height={36} style={{ borderRadius: 8, objectFit: 'contain', display: 'block' }} />
+            <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>SKAI CRM</span>
           </Link>
         </div>
         <nav style={{ flex: 1, padding: '0.75rem 0' }}>
@@ -195,11 +195,11 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
       </aside>
       <header className="crm-mobile-header">
         <Link href="/leads" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'var(--text)' }}>
-          <img src="/buildCRM.png" alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'contain', display: 'block', flexShrink: 0 }} />
-          <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>BuildCRM</span>
+          <img src="/logoskaicrmm.png" alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'contain', display: 'block', flexShrink: 0 }} />
+          <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>SKAI CRM</span>
         </Link>
         <span className="crm-mobile-header-title" style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
-          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : ''}
+          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : 'SKAI CRM'}
         </span>
       </header>
       <main className="crm-main">

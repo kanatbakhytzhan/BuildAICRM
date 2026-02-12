@@ -12,7 +12,7 @@ export class TopicsService {
     });
   }
 
-  async create(tenantId: string, data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; addressText?: string | null }) {
+  async create(tenantId: string, data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; welcomeImageUrls?: string[]; addressText?: string | null }) {
     const order = data.sortOrder ?? (await this.prisma.tenantTopic.count({ where: { tenantId } }));
     return this.prisma.tenantTopic.create({
       data: {
@@ -23,16 +23,21 @@ export class TopicsService {
         mediaUrl: data.mediaUrl ?? undefined,
         welcomeVoiceUrl: data.welcomeVoiceUrl ?? undefined,
         welcomeImageUrl: data.welcomeImageUrl ?? undefined,
+        welcomeImageUrls: data.welcomeImageUrls ? (data.welcomeImageUrls as object) : undefined,
         addressText: data.addressText ?? undefined,
       },
     });
   }
 
-  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; addressText?: string | null }) {
+  async update(tenantId: string, id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; welcomeImageUrls?: string[] | null; addressText?: string | null }) {
     await this.findOne(tenantId, id);
+    const { welcomeImageUrls, ...rest } = data;
     return this.prisma.tenantTopic.update({
       where: { id },
-      data,
+      data: {
+        ...rest,
+        ...(welcomeImageUrls !== undefined && { welcomeImageUrls: welcomeImageUrls as object }),
+      },
     });
   }
 

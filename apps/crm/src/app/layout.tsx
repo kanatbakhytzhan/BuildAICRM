@@ -6,10 +6,11 @@ import { PwaRegister } from '@/components/PwaRegister';
 const manrope = Manrope({ subsets: ['latin', 'cyrillic'], variable: '--font-manrope', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'BuildCRM',
+  title: 'SKAI CRM',
   description: 'CRM с воронкой продаж',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, title: 'BuildCRM' },
+  appleWebApp: { capable: true, title: 'SKAI CRM' },
+  icons: { icon: '/logoskaicrmm.png', apple: '/logoskaicrmm.png' },
 };
 
 export const viewport: Viewport = {

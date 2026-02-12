@@ -3,7 +3,7 @@ import { TopicsService } from './topics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
-import { IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 
 class CreateTopicDto {
   @IsString()
@@ -29,6 +29,11 @@ class CreateTopicDto {
   @IsOptional()
   @IsString()
   welcomeImageUrl?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  welcomeImageUrls?: string[];
 
   @IsOptional()
   @IsString()
@@ -60,6 +65,11 @@ class UpdateTopicDto {
   @IsOptional()
   @IsString()
   welcomeImageUrl?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  welcomeImageUrls?: string[] | null;
 
   @IsOptional()
   @IsString()

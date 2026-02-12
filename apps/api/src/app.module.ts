@@ -17,6 +17,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ChannelsModule } from './channels/channels.module';
 import { TopicsModule } from './topics/topics.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { QuickRepliesModule } from './quick-replies/quick-replies.module';
     ChannelsModule,
     TopicsModule,
     QuickRepliesModule,
+    UploadModule,
     AdminModule,
     SystemModule,
     AiModule,

@@ -784,8 +784,16 @@ export class AiService {
           if (isFirstMessage && topic.welcomeVoiceUrl?.trim()) {
             await this.messages.sendMediaToLead(lead.tenantId, lead.id, topic.welcomeVoiceUrl.trim(), 'audio');
           }
-          if ((isFirstMessage || asksPhoto) && topic.welcomeImageUrl?.trim()) {
-            await this.messages.sendMediaToLead(lead.tenantId, lead.id, topic.welcomeImageUrl.trim(), 'image');
+          if (isFirstMessage || asksPhoto) {
+            const imageUrls: string[] = [];
+            if (topic.welcomeImageUrl?.trim()) imageUrls.push(topic.welcomeImageUrl.trim());
+            const extra = (topic.welcomeImageUrls as string[] | null) ?? [];
+            for (const u of extra) {
+              if (typeof u === 'string' && u.trim()) imageUrls.push(u.trim());
+            }
+            for (const url of imageUrls) {
+              await this.messages.sendMediaToLead(lead.tenantId, lead.id, url, 'image');
+            }
           }
           if (asksAddress && topic.addressText?.trim()) {
             await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);

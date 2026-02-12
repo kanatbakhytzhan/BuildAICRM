@@ -55,7 +55,7 @@ export default function LoginPage() {
         }}
       >
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>BuildCRM</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>SKAI CRM</div>
           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Global Admin</div>
         </div>
         <label style={{ display: 'block', marginBottom: '1rem' }}>

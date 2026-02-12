@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { users, channels, topics, pipeline, quickReplies, type Channel, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
+import { users, channels, topics, pipeline, quickReplies, uploadFile, type Channel, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
@@ -28,7 +28,10 @@ export default function SettingsPage() {
   const [editTopicMedia, setEditTopicMedia] = useState('');
   const [editTopicWelcomeVoice, setEditTopicWelcomeVoice] = useState('');
   const [editTopicWelcomeImage, setEditTopicWelcomeImage] = useState('');
+  const [editTopicWelcomeImageUrls, setEditTopicWelcomeImageUrls] = useState<string[]>([]);
   const [editTopicAddress, setEditTopicAddress] = useState('');
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [qrLabel, setQrLabel] = useState('');
   const [qrMessageText, setQrMessageText] = useState('');
   const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
@@ -164,7 +167,22 @@ export default function SettingsPage() {
           {topicsList.map((t) => (
             <li key={t.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 500 }}>{t.name}</span>
-              <button type="button" onClick={() => { setEditTopic(t); setEditTopicName(t.name); setEditTopicScenario(t.scenarioText ?? ''); setEditTopicMedia(t.mediaUrl ?? ''); setEditTopicWelcomeVoice(t.welcomeVoiceUrl ?? ''); setEditTopicWelcomeImage(t.welcomeImageUrl ?? ''); setEditTopicAddress(t.addressText ?? ''); }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
+              <button type="button" onClick={() => {
+                const imgs: string[] = [];
+                if (t.welcomeImageUrl) imgs.push(t.welcomeImageUrl);
+                const extra = t.welcomeImageUrls ?? [];
+                for (const u of extra) {
+                  if (typeof u === 'string' && u && !imgs.includes(u)) imgs.push(u);
+                }
+                setEditTopic(t);
+                setEditTopicName(t.name);
+                setEditTopicScenario(t.scenarioText ?? '');
+                setEditTopicMedia(t.mediaUrl ?? '');
+                setEditTopicWelcomeVoice(t.welcomeVoiceUrl ?? '');
+                setEditTopicWelcomeImage(t.welcomeImageUrl ?? '');
+                setEditTopicWelcomeImageUrls(imgs);
+                setEditTopicAddress(t.addressText ?? '');
+              }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
               <button
                 type="button"
                 onClick={() => {
@@ -185,12 +203,77 @@ export default function SettingsPage() {
             <input type="text" placeholder="Название" value={editTopicName} onChange={(e) => setEditTopicName(e.target.value)} style={{ width: '100%', maxWidth: 280, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
             <textarea placeholder="Сценарий для AI (инструкция по теме)" value={editTopicScenario} onChange={(e) => setEditTopicScenario(e.target.value)} rows={4} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
             <input type="url" placeholder="Ссылка на медиа (когда готово)" value={editTopicMedia} onChange={(e) => setEditTopicMedia(e.target.value)} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
-            <input type="url" placeholder="Приветственное голосовое (URL аудио)" value={editTopicWelcomeVoice} onChange={(e) => setEditTopicWelcomeVoice(e.target.value)} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
-            <input type="url" placeholder="Приветственное фото/прайс (URL изображения)" value={editTopicWelcomeImage} onChange={(e) => setEditTopicWelcomeImage(e.target.value)} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Приветственное голосовое</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.5rem 0.75rem', background: 'var(--accent-light)', color: 'var(--accent)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                  <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setUploadingVoice(true);
+                    try {
+                      const { url } = await uploadFile(f);
+                      setEditTopicWelcomeVoice(url);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                    } finally {
+                      setUploadingVoice(false);
+                      e.target.value = '';
+                    }
+                  }} disabled={uploadingVoice} />
+                  {uploadingVoice ? '… Загрузка' : '📁 Загрузить аудио'}
+                </label>
+                <input type="url" placeholder="или вставьте URL" value={editTopicWelcomeVoice} onChange={(e) => setEditTopicWelcomeVoice(e.target.value)} style={{ flex: 1, minWidth: 200, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Приветственные фото (можно несколько)</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.5rem 0.75rem', background: 'var(--accent-light)', color: 'var(--accent)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                  <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files?.length) return;
+                    setUploadingImages(true);
+                    try {
+                      for (let i = 0; i < files.length; i++) {
+                        const { url } = await uploadFile(files[i]);
+                        setEditTopicWelcomeImageUrls((prev) => [...prev, url]);
+                      }
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                    } finally {
+                      setUploadingImages(false);
+                      e.target.value = '';
+                    }
+                  }} disabled={uploadingImages} />
+                  {uploadingImages ? '… Загрузка' : '📁 Загрузить фото'}
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {editTopicWelcomeImageUrls.map((url, i) => (
+                    <div key={url} style={{ position: 'relative', width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button type="button" onClick={() => setEditTopicWelcomeImageUrls((p) => p.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 4, border: 'none', background: 'rgba(0,0,0,0.6)', color: 'white', cursor: 'pointer', fontSize: 12 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             <textarea placeholder="Адрес / местоположение" value={editTopicAddress} onChange={(e) => setEditTopicAddress(e.target.value)} rows={2} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={() => setEditTopic(null)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>Отмена</button>
-              <button type="button" onClick={() => { setSaving(true); topics.update(editTopic.id, { name: editTopicName, scenarioText: editTopicScenario || null, mediaUrl: editTopicMedia || null, welcomeVoiceUrl: editTopicWelcomeVoice || null, welcomeImageUrl: editTopicWelcomeImage || null, addressText: editTopicAddress || null }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false)); }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
+              <button type="button" onClick={() => {
+                const firstImg = editTopicWelcomeImageUrls[0] || editTopicWelcomeImage || null;
+                setSaving(true);
+                topics.update(editTopic.id, {
+                  name: editTopicName,
+                  scenarioText: editTopicScenario || null,
+                  mediaUrl: editTopicMedia || null,
+                  welcomeVoiceUrl: editTopicWelcomeVoice || null,
+                  welcomeImageUrl: firstImg,
+                  welcomeImageUrls: editTopicWelcomeImageUrls,
+                  addressText: editTopicAddress || null,
+                }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
+              }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
             </div>
           </div>
         )}

@@ -56,8 +56,8 @@ export default function LoginPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
-          <img src="/buildCRM.png" alt="" width={48} height={48} style={{ borderRadius: 10, objectFit: 'contain' }} />
-          <h1 style={{ margin: 0, fontSize: '1.5rem' }}>BuildCRM</h1>
+          <img src="/logoskaicrmm.png" alt="" width={48} height={48} style={{ borderRadius: 10, objectFit: 'contain' }} />
+          <h1 style={{ margin: 0, fontSize: '1.5rem' }}>SKAI CRM</h1>
         </div>
         {tenantsList.length > 0 && (
           <label style={{ display: 'block', marginBottom: '1rem' }}>

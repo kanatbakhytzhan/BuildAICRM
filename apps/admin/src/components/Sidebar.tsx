@@ -34,9 +34,9 @@ export default function Sidebar() {
     >
       <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/buildCRM.png" alt="" width={36} height={36} style={{ borderRadius: 8, objectFit: 'contain' }} />
+          <img src="/logoskaicrmm.png" alt="" width={36} height={36} style={{ borderRadius: 8, objectFit: 'contain' }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>BuildCRM</div>
+            <div style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>SKAI CRM</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>Global Admin</div>
           </div>
         </div>

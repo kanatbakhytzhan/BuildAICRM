@@ -64,8 +64,9 @@ model TenantTopic {
   sortOrder         Int      @default(0)
   scenarioText      String?  @db.Text   // Этап 4: сценарий/инструкция для AI по теме (панели, ламинат и т.д.)
   mediaUrl          String?  // ссылка на медиа по теме (когда готово)
-  welcomeVoiceUrl   String?  // приветственное голосовое по теме
-  welcomeImageUrl   String?  // приветственное фото/прайс по теме
+  welcomeVoiceUrl   String?  // приветственное голосовое по теме (URL или загруженный файл)
+  welcomeImageUrl   String?  // приветственное фото (основное, для обратной совместимости)
+  welcomeImageUrls  Json?    // массив URL фото/прайсов (поддержка нескольких)
   addressText       String?  @db.Text   // адрес/местоположение по теме
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
