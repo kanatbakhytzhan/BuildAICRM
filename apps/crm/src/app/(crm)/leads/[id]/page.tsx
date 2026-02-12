@@ -204,11 +204,15 @@ export default function LeadDetailPage() {
     return `${diffDays} дн`;
   };
 
-  const sendMessage = async (text: string) => {
-    if (!lead || !text.trim()) return;
+  const apiBaseUrl = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000') : '';
+
+  const sendMessage = async (text: string, mediaUrl?: string) => {
+    if (!lead) return;
+    if (!text.trim() && !mediaUrl) return;
     setSending(true);
     try {
-      const msg = await messages.create(lead.id, text.trim());
+      const body = text.trim() || (mediaUrl ? 'Голосовое сообщение' : '');
+      const msg = await messages.create(lead.id, body, mediaUrl);
       setMsgs((prev) => [...prev, msg]);
       const nowIso = new Date().toISOString();
       setLead((prev) =>
@@ -216,7 +220,7 @@ export default function LeadDetailPage() {
           ? {
               ...prev,
               lastMessageAt: nowIso,
-              lastMessagePreview: text.trim().slice(0, 120),
+              lastMessagePreview: body.slice(0, 120),
               noResponseSince: nowIso,
             }
           : prev,
@@ -251,11 +255,20 @@ export default function LeadDetailPage() {
       const recorder = new MediaRecorder(stream);
       const chunks: Blob[] = [];
       recorder.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         setRecordingChunks([]);
-        if (lead) sendMessage('🎤 Голосовое сообщение');
+        if (!lead || chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        const file = new File([blob], 'voice.webm', { type: blob.type });
+        try {
+          const { mediaUrl } = await messages.uploadMedia(lead.id, file);
+          await sendMessage('Голосовое сообщение', mediaUrl);
+        } catch (e) {
+          console.error(e);
+          await sendMessage('Голосовое сообщение');
+        }
       };
       mediaRecorderRef.current = recorder;
       setRecordingChunks([]);
@@ -563,7 +576,14 @@ export default function LeadDetailPage() {
                         lineHeight: 1.45,
                       }}
                     >
-                      {m.body}
+                      {m.mediaUrl ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <audio controls src={apiBaseUrl + m.mediaUrl} style={{ maxWidth: '100%', height: 36, minWidth: 200 }} />
+                          {m.body && <span>{m.body}</span>}
+                        </div>
+                      ) : (
+                        m.body
+                      )}
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, paddingLeft: m.direction === 'out' ? 0 : 4, paddingRight: m.direction === 'out' ? 4 : 0, display: 'flex', alignItems: 'center', gap: 4, flexDirection: m.direction === 'out' ? 'row-reverse' : 'row' }}>
                       {new Date(m.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}

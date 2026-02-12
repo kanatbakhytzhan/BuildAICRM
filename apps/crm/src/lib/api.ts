@@ -49,7 +49,7 @@ export type Lead = {
   channel?: Channel | null;
   topic?: Topic | null;
 };
-export type Message = { id: string; source: string; direction: string; body: string | null; createdAt: string };
+export type Message = { id: string; source: string; direction: string; body: string | null; mediaUrl?: string | null; createdAt: string };
 
 export const auth = {
   login: (tenantId: string, email: string, password: string) =>
@@ -120,11 +120,26 @@ export const leads = {
 
 export const messages = {
   list: (leadId: string) => api<Message[]>(`/leads/${leadId}/messages`),
-  create: (leadId: string, body: string) =>
+  create: (leadId: string, body: string, mediaUrl?: string) =>
     api<Message>(`/leads/${leadId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, ...(mediaUrl && { mediaUrl }) }),
     }),
+  uploadMedia: async (leadId: string, file: File): Promise<{ mediaUrl: string }> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/leads/${leadId}/messages/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(err.message || 'Upload failed');
+    }
+    return res.json();
+  },
 };
 
 export const ai = {

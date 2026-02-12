@@ -1,10 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessageSource, MessageDirection } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
+
+  async saveUpload(tenantId: string, leadId: string, file: Express.Multer.File): Promise<string> {
+    if (!file?.buffer) throw new NotFoundException('No file');
+    const lead = await this.prisma.lead.findFirst({ where: { id: leadId, tenantId } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    const ext = path.extname(file.originalname) || '.webm';
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    const dir = path.join(process.cwd(), 'uploads', leadId);
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, name);
+    fs.writeFileSync(filePath, file.buffer);
+    return `/uploads/${leadId}/${name}`;
+  }
 
   async listByLead(tenantId: string, leadId: string) {
     const lead = await this.prisma.lead.findFirst({
