@@ -638,8 +638,8 @@ export class AiService {
     });
 
     // Schedule follow-up if enabled (не планируем, если клиент доработан и записан на звонок)
-    const meta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
-    const hasCallScheduled = meta.suggestedCallAt != null || meta.suggestedCallNote != null;
+    const leadMeta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
+    const hasCallScheduled = leadMeta.suggestedCallAt != null || leadMeta.suggestedCallNote != null;
     const isWantsCall = updatedLead.stage?.type === 'wants_call';
     if (settings?.followUpEnabled && settings?.followUpMessage && !isWantsCall && !hasCallScheduled) {
       const delayMinutes = Number(settings.followUpDelay || '0') || 0;
