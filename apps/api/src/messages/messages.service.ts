@@ -11,6 +11,13 @@ export interface UploadedFileDto {
   size?: number;
 }
 
+const AUDIO_EXT = /\.(webm|ogg|opus|mp3|m4a|aac|wav|oga)$/i;
+
+function getApiPublicUrl(): string {
+  const url = process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '';
+  return url.replace(/\/$/, '');
+}
+
 @Injectable()
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
@@ -80,11 +87,11 @@ export class MessagesService {
       },
     });
 
-    // Отправить исходящее с того же номера (канала), что и лид
+    // Отправить исходящее в WhatsApp (текст или голос) с того же номера (канала), что и лид
     if (
       data.direction === MessageDirection.out &&
-      data.body?.trim() &&
-      data.source === MessageSource.human
+      data.source === MessageSource.human &&
+      (data.body?.trim() || data.mediaUrl)
     ) {
       const settings = await this.prisma.tenantSettings.findUnique({
         where: { tenantId },
@@ -100,13 +107,28 @@ export class MessagesService {
         const phone = String(lead.phone).replace(/\D/g, '');
         if (phone.length >= 10) {
           const jid = `${phone}@s.whatsapp.net`;
-          const url = new URL('https://app.chatflow.kz/api/v1/send-text');
-          url.searchParams.set('token', settings.chatflowApiToken);
-          url.searchParams.set('instance_id', instanceId);
-          url.searchParams.set('jid', jid);
-          url.searchParams.set('msg', data.body.trim());
+          const isAudio = data.mediaUrl && AUDIO_EXT.test(data.mediaUrl);
+          const apiBase = getApiPublicUrl();
+
           try {
-            await fetch(url.toString());
+            if (isAudio && apiBase) {
+              // Отправляем голосовое как аудио/голос в WhatsApp (send-media), чтобы приходило голосовым
+              const mediaUrl = new URL('https://app.chatflow.kz/api/v1/send-media');
+              mediaUrl.searchParams.set('token', settings.chatflowApiToken);
+              mediaUrl.searchParams.set('instance_id', instanceId);
+              mediaUrl.searchParams.set('jid', jid);
+              mediaUrl.searchParams.set('url', `${apiBase}${data.mediaUrl}`);
+              mediaUrl.searchParams.set('type', 'ptt'); // voice message in WhatsApp
+              await fetch(mediaUrl.toString());
+            }
+            if (!isAudio && data.body?.trim()) {
+              const url = new URL('https://app.chatflow.kz/api/v1/send-text');
+              url.searchParams.set('token', settings.chatflowApiToken);
+              url.searchParams.set('instance_id', instanceId);
+              url.searchParams.set('jid', jid);
+              url.searchParams.set('msg', data.body.trim());
+              await fetch(url.toString());
+            }
           } catch {
             // не падаем: сообщение уже сохранено в CRM
           }
