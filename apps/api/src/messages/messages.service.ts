@@ -4,11 +4,18 @@ import { MessageSource, MessageDirection } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface UploadedFileDto {
+  buffer: Buffer;
+  originalname: string;
+  mimetype?: string;
+  size?: number;
+}
+
 @Injectable()
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
 
-  async saveUpload(tenantId: string, leadId: string, file: Express.Multer.File): Promise<string> {
+  async saveUpload(tenantId: string, leadId: string, file: UploadedFileDto): Promise<string> {
     if (!file?.buffer) throw new NotFoundException('No file');
     const lead = await this.prisma.lead.findFirst({ where: { id: leadId, tenantId } });
     if (!lead) throw new NotFoundException('Lead not found');

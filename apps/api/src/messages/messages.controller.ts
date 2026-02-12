@@ -1,13 +1,12 @@
 import { Body, Controller, Get, Param, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MessagesService } from './messages.service';
+import type { UploadedFileDto } from './messages.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
 import { IsString, IsOptional } from 'class-validator';
 import { MessageDirection, MessageSource } from '@prisma/client';
-import * as fs from 'fs';
-import * as path from 'path';
 
 class CreateMessageDto {
   @IsString()
@@ -33,7 +32,7 @@ export class MessagesController {
   async upload(
     @CurrentUser() user: RequestUser,
     @Param('leadId') leadId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: UploadedFileDto,
   ) {
     const mediaUrl = await this.messagesService.saveUpload(user.tenantId, leadId, file);
     return { mediaUrl };
