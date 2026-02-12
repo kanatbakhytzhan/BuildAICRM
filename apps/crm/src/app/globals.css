@@ -367,14 +367,27 @@ a.leads-add-btn:hover {
   }
 }
 @media (max-width: 768px) {
-  .lead-detail-chat {
-    max-height: none;
+  .page-content.lead-detail-root {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
   .lead-detail-root {
     flex-direction: column;
+    min-height: 0;
+  }
+  .lead-detail-chat {
+    max-height: none;
+    min-height: 50vh;
+    overflow: visible;
+  }
+  .lead-detail-chat-messages {
+    overflow-y: visible !important;
+    min-height: 200px;
   }
   .lead-detail-sidebar {
     width: 100%;
+    min-width: 0;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }

@@ -538,7 +538,7 @@ export default function LeadDetailPage() {
           </div>
           {handoffError && <span style={{ fontSize: 12, color: 'var(--danger)' }}>{handoffError}</span>}
         </header>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="lead-detail-chat-messages" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {msgs.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>Нет сообщений</p>
           ) : (
