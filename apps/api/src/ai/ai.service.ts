@@ -754,7 +754,7 @@ export class AiService {
       try {
         // Приветственные голос/фото/адрес по теме — отправляем до AI ответа
         const inCount = allMessages.filter((m) => m.direction === MessageDirection.in).length;
-        const isFirstMessage = inCount <= 1;
+        const isFirstMessage = inCount <= 2;
         const lower = batchText.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
         const asksAddress = /адрес|где\s+(вы|находитесь|офис|склад)|местоположение|location|мекенжай|мекен-жай/.test(lower);
         const asksPhoto = /фото|прайс|каталог|презентация|жоба|сұрақтар|сурактар/.test(lower);
@@ -763,7 +763,8 @@ export class AiService {
           трактор: ['погрузчик', 'трактор', 'техника'],
           ламинат: ['ламинат'],
           линолеум: ['линолеум'],
-          панел: ['панел', 'сэндвич', 'фасад', 'утеплен', 'дом'],
+          панел: ['панел', 'панель', 'панелей', 'сэндвич', 'фасад', 'утеплен', 'дом'],
+          панель: ['панел', 'панель', 'панелей', 'сэндвич', 'фасад', 'утеплен', 'дом'],
         };
         let topicId = lead.topicId;
         if (!topicId) {
@@ -780,7 +781,25 @@ export class AiService {
         const topic = topicId
           ? await this.prisma.tenantTopic.findFirst({ where: { id: topicId, tenantId: lead.tenantId } })
           : null;
+        if (!topic && topicId) {
+          await this.logs.log({
+            tenantId: lead.tenantId,
+            category: 'ai',
+            message: `Topic not found topicId=${topicId} leadId=${lead.id}`,
+            meta: { leadId: lead.id, topicId },
+          });
+        }
         if (topic) {
+          const hasVoice = !!topic.welcomeVoiceUrl?.trim();
+          const hasImages = !!(topic.welcomeImageUrl?.trim() || ((topic.welcomeImageUrls as string[] | null) ?? []).some((u) => typeof u === 'string' && u.trim()));
+          if (isFirstMessage && (hasVoice || hasImages)) {
+            await this.logs.log({
+              tenantId: lead.tenantId,
+              category: 'ai',
+              message: `Приветственное медиа: topic=${topic.name} leadId=${lead.id} isFirst=${isFirstMessage} inCount=${inCount} hasVoice=${hasVoice} hasImages=${hasImages}`,
+              meta: { leadId: lead.id, topicId: topic.id },
+            });
+          }
           if (isFirstMessage && topic.welcomeVoiceUrl?.trim()) {
             const voiceUrl = topic.welcomeVoiceUrl.trim();
             await this.logs.log({
