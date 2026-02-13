@@ -1,17 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { users, channels, topics, pipeline, quickReplies, uploadFile, type Channel, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
+import { users, topics, pipeline, quickReplies, uploadFile, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
-  const [channelsList, setChannelsList] = useState<Channel[]>([]);
   const [topicsList, setTopicsList] = useState<Topic[]>([]);
   const [stagesList, setStagesList] = useState<Stage[]>([]);
   const [quickRepliesList, setQuickRepliesList] = useState<QuickReplyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chName, setChName] = useState('');
-  const [chExternalId, setChExternalId] = useState('');
   const [topicName, setTopicName] = useState('');
   const [stageName, setStageName] = useState('');
   const [stageType, setStageType] = useState('new');
@@ -49,9 +46,8 @@ export default function SettingsPage() {
       setLoading(false);
       return;
     }
-    Promise.all([channels.list(), topics.list(), pipeline.list(), quickReplies.list()])
-      .then(([ch, top, st, qr]) => {
-        setChannelsList(ch);
+    Promise.all([topics.list(), pipeline.list(), quickReplies.list()])
+      .then(([top, st, qr]) => {
         setTopicsList(top);
         setStagesList(st);
         setQuickRepliesList(qr);
@@ -62,7 +58,6 @@ export default function SettingsPage() {
 
   const loadAll = () => {
     if (!canEdit) return;
-    channels.list().then(setChannelsList);
     topics.list().then(setTopicsList);
     pipeline.list().then(setStagesList);
     quickReplies.list().then(setQuickRepliesList);
@@ -91,71 +86,6 @@ export default function SettingsPage() {
   return (
     <div className="page-content" style={{ background: 'var(--bg)' }}>
       <h1 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', fontWeight: 700 }}>Настройки</h1>
-
-      {/* Каналы */}
-      <section style={{ marginBottom: '2rem', padding: '1.25rem', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
-        <h2 style={{ margin: '0 0 1rem', fontSize: '1.125rem', fontWeight: 700 }}>Каналы (WhatsApp-номера)</h2>
-        <p style={{ margin: '0 0 1rem', fontSize: 13, color: 'var(--text-muted)' }}>
-          Для одного webhook с несколькими номерами укажите externalId (instance_id из ChatFlow) для каждого канала.
-        </p>
-        <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: '1rem' }}>
-          {channelsList.map((ch) => (
-            <li key={ch.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 500 }}>{ch.name}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({ch.externalId})</span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Удалить канал?')) {
-                    channels.remove(ch.id).then(loadAll).catch((e) => setError(e.message));
-                  }
-                }}
-                style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--danger)' }}
-              >
-                Удалить
-              </button>
-            </li>
-          ))}
-        </ul>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setError('');
-            setSaving(true);
-            channels
-              .create({ name: chName, externalId: chExternalId })
-              .then(() => {
-                setChName('');
-                setChExternalId('');
-                loadAll();
-              })
-              .catch((e) => setError(e.message))
-              .finally(() => setSaving(false));
-          }}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-end' }}
-        >
-          <input
-            type="text"
-            placeholder="Название (например: Номер 1)"
-            value={chName}
-            onChange={(e) => setChName(e.target.value)}
-            required
-            style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 160 }}
-          />
-          <input
-            type="text"
-            placeholder="externalId (instance_id из ChatFlow)"
-            value={chExternalId}
-            onChange={(e) => setChExternalId(e.target.value)}
-            required
-            style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 180 }}
-          />
-          <button type="submit" disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>
-            {saving ? '…' : 'Добавить канал'}
-          </button>
-        </form>
-        {error && <p style={{ marginTop: 8, color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
-      </section>
 
       {/* Темы */}
       <section style={{ marginBottom: '2rem', padding: '1.25rem', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>

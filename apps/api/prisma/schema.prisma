@@ -121,6 +121,7 @@ model TenantSettings {
   followUpEnabled  Boolean  @default(true)
   followUpDelay    String?  // "15" (minutes) or "1" (hour)
   followUpMessage  String?  @db.Text
+  revenueGoal      Int?     // цель по выручке за период (₸), для аналитики в CRM
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

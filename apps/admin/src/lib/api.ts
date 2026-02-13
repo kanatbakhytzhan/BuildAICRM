@@ -143,6 +143,19 @@ export type TenantSettings = {
   followUpEnabled: boolean;
   followUpDelay: string | null;
   followUpMessage: string | null;
+  revenueGoal: number | null;
+};
+
+export type AdminChannel = { id: string; name: string; externalId: string };
+
+export const adminChannels = {
+  list: (tenantId: string) => api<AdminChannel[]>(`/admin/tenants/${tenantId}/channels`),
+  create: (tenantId: string, data: { name: string; externalId: string }) =>
+    api<AdminChannel>(`/admin/tenants/${tenantId}/channels`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (tenantId: string, id: string, data: { name?: string; externalId?: string }) =>
+    api<AdminChannel>(`/admin/tenants/${tenantId}/channels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (tenantId: string, id: string) =>
+    api<void>(`/admin/tenants/${tenantId}/channels/${id}`, { method: 'DELETE' }),
 };
 
 export type FollowUpTemplate = {

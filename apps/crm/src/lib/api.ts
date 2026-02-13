@@ -121,6 +121,12 @@ export const topics = {
   remove: (id: string) => api<void>(`/topics/${id}`, { method: 'DELETE' }),
 };
 
+export const config = {
+  get: () => api<{ revenueGoal: number | null }>('/config'),
+  update: (data: { revenueGoal?: number | null }) =>
+    api<{ revenueGoal: number | null }>('/config', { method: 'PATCH', body: JSON.stringify(data) }),
+};
+
 export const leads = {
   list: (params?: { stageId?: string; topicId?: string; onlyMine?: boolean }) => {
     const q = new URLSearchParams();

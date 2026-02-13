@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { leads, users } from '@/lib/api';
+import { leads, users, config } from '@/lib/api';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 const PERIODS: { value: Period; label: string }[] = [
@@ -18,6 +18,10 @@ function formatMoney(n: number) {
 export default function AnalyticsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string; name: string | null } | null>(null);
   const [period, setPeriod] = useState<Period>('month');
+  const [revenueGoal, setRevenueGoal] = useState<number | null>(null);
+  const [goalEditing, setGoalEditing] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [goalSaving, setGoalSaving] = useState(false);
   const [data, setData] = useState<{
     totalRevenue: number;
     dealsCount: number;
@@ -37,9 +41,31 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (currentUser && (currentUser.role === 'owner' || currentUser.role === 'rop')) {
       setLoading(true);
-      leads.analytics(period).then(setData).catch(console.error).finally(() => setLoading(false));
+      Promise.all([leads.analytics(period), config.get()])
+        .then(([analyticsData, cfg]) => {
+          setData(analyticsData);
+          setRevenueGoal(cfg.revenueGoal);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
     }
   }, [currentUser, period]);
+
+  const saveGoal = async () => {
+    const num = goalInput.trim() ? Math.round(Number(goalInput.replace(/\s/g, ''))) : null;
+    if (num != null && (Number.isNaN(num) || num < 0)) return;
+    setGoalSaving(true);
+    try {
+      const res = await config.update({ revenueGoal: num ?? null });
+      setRevenueGoal(res.revenueGoal);
+      setGoalEditing(false);
+      setGoalInput('');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGoalSaving(false);
+    }
+  };
 
   if (currentUser && currentUser.role !== 'owner' && currentUser.role !== 'rop') {
     return (
@@ -51,7 +77,7 @@ export default function AnalyticsPage() {
 
   const maxRevenue = data?.byPeriod?.length ? Math.max(...data.byPeriod.map((p) => p.revenue), 1) : 1;
   const maxLeads = data?.leadsByPeriod?.length ? Math.max(...data.leadsByPeriod.map((p) => p.count), 1) : 1;
-  const weeklyTarget = 500000; // плейсхолдер цели
+  const weeklyTarget = revenueGoal ?? 0;
   const targetPercent = weeklyTarget > 0 ? Math.min(100, Math.round((data?.totalRevenue ?? 0) / weeklyTarget * 100)) : 0;
 
   return (
@@ -288,9 +314,36 @@ export default function AnalyticsPage() {
                 gap: 20,
               }}
             >
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <h4 style={{ margin: '0 0 4px', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Цель периода</h4>
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--text-muted)' }}>Цель: {formatMoney(weeklyTarget)}</p>
+                {goalEditing ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Сумма в ₸"
+                      value={goalInput}
+                      onChange={(e) => setGoalInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
+                      style={{ padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 8, width: 140, fontSize: 14 }}
+                      autoFocus
+                    />
+                    <button type="button" onClick={saveGoal} disabled={goalSaving} style={{ padding: '6px 12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 13 }}>
+                      {goalSaving ? '…' : 'Сохранить'}
+                    </button>
+                    <button type="button" onClick={() => { setGoalEditing(false); setGoalInput(''); }} style={{ padding: '6px 12px', background: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: 13 }}>
+                      Отмена
+                    </button>
+                  </div>
+                ) : (
+                  <p
+                    style={{ margin: 0, fontSize: 14, color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                    onClick={() => { setGoalEditing(true); setGoalInput(weeklyTarget > 0 ? String(weeklyTarget) : ''); }}
+                    title="Нажмите, чтобы изменить цель"
+                  >
+                    Цель: {weeklyTarget > 0 ? formatMoney(weeklyTarget) : 'не задана (нажмите, чтобы ввести)'}
+                  </p>
+                )}
               </div>
               <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
                 <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>

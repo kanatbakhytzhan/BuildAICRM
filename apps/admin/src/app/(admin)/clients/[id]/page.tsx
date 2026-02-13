@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { adminLogs, adminTenants, adminLeads, adminAnalytics, type AdminTenantDetail, type SystemLog, type AdminLead } from '@/lib/api';
+import { adminLogs, adminTenants, adminLeads, adminAnalytics, adminChannels, type AdminTenantDetail, type SystemLog, type AdminLead, type AdminChannel } from '@/lib/api';
 
-type Tab = 'general' | 'whatsapp' | 'ai' | 'deals' | 'logs';
+type Tab = 'general' | 'whatsapp' | 'numbers' | 'ai' | 'deals' | 'logs';
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -21,6 +21,11 @@ export default function ClientDetailPage() {
   const [analytics, setAnalytics] = useState<{ totalRevenue: number; dealsCount: number; byPeriod: { label: string; revenue: number; count: number }[] } | null>(null);
   const [dealsLoading, setDealsLoading] = useState(false);
   const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
+  const [channelsList, setChannelsList] = useState<AdminChannel[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const [newChName, setNewChName] = useState('');
+  const [newChExternalId, setNewChExternalId] = useState('');
+  const [addingChannel, setAddingChannel] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -57,6 +62,12 @@ export default function ClientDetailPage() {
       .finally(() => setDealsLoading(false));
   }, [id, tab]);
 
+  useEffect(() => {
+    if (tab !== 'numbers') return;
+    setChannelsLoading(true);
+    adminChannels.list(id).then(setChannelsList).catch(console.error).finally(() => setChannelsLoading(false));
+  }, [id, tab]);
+
   if (loading || !tenant) {
     return <div style={{ padding: '2rem' }}>Загрузка...</div>;
   }
@@ -64,6 +75,7 @@ export default function ClientDetailPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'general', label: 'Обзор' },
     { id: 'whatsapp', label: 'WhatsApp' },
+    { id: 'numbers', label: 'Номера' },
     { id: 'ai', label: 'AI-настройки' },
     { id: 'deals', label: 'Успешные сделки' },
     { id: 'logs', label: 'Логи' },
@@ -264,6 +276,92 @@ export default function ClientDetailPage() {
             <div style={{ fontWeight: 600, marginBottom: 4 }}>Подключено</div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>Интеграция настроена</div>
           </div>
+        </div>
+      )}
+
+      {tab === 'numbers' && (
+        <div style={{ maxWidth: 640 }}>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>WhatsApp-номера (каналы)</h3>
+          <p style={{ margin: '0 0 1rem', fontSize: 14, color: 'var(--text-muted)' }}>
+            Для одного webhook с несколькими номерами укажите externalId (instance_id из ChatFlow) для каждого номера.
+          </p>
+          {channelsLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка…</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Название (напр. Основной)"
+                  value={newChName}
+                  onChange={(e) => setNewChName(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }}
+                />
+                <input
+                  type="text"
+                  placeholder="externalId (instance_id)"
+                  value={newChExternalId}
+                  onChange={(e) => setNewChExternalId(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, minWidth: 160 }}
+                />
+                <button
+                  type="button"
+                  disabled={addingChannel || !newChName.trim() || !newChExternalId.trim()}
+                  onClick={async () => {
+                    setAddingChannel(true);
+                    try {
+                      const ch = await adminChannels.create(id, { name: newChName.trim(), externalId: newChExternalId.trim() });
+                      setChannelsList((prev) => [...prev, ch]);
+                      setNewChName('');
+                      setNewChExternalId('');
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setAddingChannel(false);
+                    }
+                  }}
+                  style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600 }}
+                >
+                  {addingChannel ? '…' : 'Добавить'}
+                </button>
+              </div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {channelsList.map((ch) => (
+                  <li
+                    key={ch.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      background: 'var(--page-bg)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{ch.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>instance_id: {ch.externalId}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm('Удалить этот номер?')) return;
+                        await adminChannels.remove(id, ch.id);
+                        setChannelsList((prev) => prev.filter((c) => c.id !== ch.id));
+                      }}
+                      style={{ padding: '4px 10px', fontSize: 12, color: 'var(--danger)', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 6 }}
+                    >
+                      Удалить
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {channelsList.length === 0 && !channelsLoading && (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Нет добавленных номеров. Добавьте первый выше.</div>
+              )}
+            </>
+          )}
         </div>
       )}
 

@@ -24,9 +24,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--page-bg)' }}>
       <Sidebar />
-      <main style={{ flex: 1, overflow: 'auto' }}>{children}</main>
+      <main style={{ flex: 1, overflow: 'auto', background: '#f8fafc', minWidth: 0 }}>{children}</main>
     </div>
   );
 }

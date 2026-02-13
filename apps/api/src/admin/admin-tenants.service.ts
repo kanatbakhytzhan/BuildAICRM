@@ -89,6 +89,7 @@ export class AdminTenantsService {
       'systemPrompt', 'respondFirst', 'suggestCall', 'askQuestions',
       'nightModeEnabled', 'nightModeStart', 'nightModeEnd', 'nightModeMessage',
       'followUpEnabled', 'followUpDelay', 'followUpMessage',
+      'revenueGoal',
     ];
     let payload = Object.fromEntries(
       Object.entries(data).filter(([k]) => allowed.includes(k))

@@ -85,22 +85,24 @@ export default function LeadsPage() {
   const isMobile = useIsMobile();
   const [mobileTabIndex, setMobileTabIndex] = useState(0);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
+    const stageId = stageFilter.trim() || undefined;
+    const topicId = topicFilter.trim() || undefined;
     Promise.all([
       pipeline.list(),
       topics.list(),
-      leads.list({ onlyMine, stageId: stageFilter || undefined, topicId: topicFilter || undefined }),
+      leads.list({ onlyMine, stageId, topicId }),
     ]).then(([s, top, l]) => {
       setStages(s);
       setTopicsList(top);
       setLeadsList(l);
     }).catch(console.error).finally(() => setLoading(false));
-  };
+  }, [onlyMine, stageFilter, topicFilter]);
 
   useEffect(() => {
     load();
-  }, [onlyMine, stageFilter, topicFilter]);
+  }, [load]);
 
   const filtered = search.trim()
     ? leadsList.filter(
@@ -374,7 +376,7 @@ export default function LeadsPage() {
                   fontSize: 13,
                 }}
               >
-                Канбан
+                Воронка
               </button>
               <button
                 type="button"
