@@ -3,10 +3,9 @@
 services:
   - type: web
     name: buildcrm-api
-    runtime: node
-    rootDir: apps/api
-    buildCommand: npm ci --include=dev && npx prisma generate && npx nest build
-    startCommand: npm start
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
     envVars:
       - key: NODE_VERSION
         value: "22"

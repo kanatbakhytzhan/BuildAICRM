@@ -1,19 +1,15 @@
-FROM node:20-alpine AS base
+FROM node:22-alpine
+
 WORKDIR /app
 
-# Prisma на Alpine нужен openssl
-RUN apk add --no-cache openssl
-
 COPY package*.json ./
-RUN npm ci
-COPY . .
+RUN npm ci --include=dev
+
+COPY prisma ./prisma/
 RUN npx prisma generate
-RUN npm run build
+
+COPY . .
+RUN npx nest build
 
 EXPOSE 4000
-
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-# Убираем CRLF (Windows) чтобы скрипт работал в Linux
-RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]
