@@ -752,7 +752,6 @@ export class AiService {
       });
       if (!batchText.trim()) continue;
       try {
-        // Приветственные голос/фото/адрес по теме — отправляем до AI ответа
         const inCount = allMessages.filter((m) => m.direction === MessageDirection.in).length;
         const isFirstMessage = inCount <= 2;
         const lower = batchText.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
@@ -789,6 +788,19 @@ export class AiService {
             meta: { leadId: lead.id, topicId },
           });
         }
+
+        // 1) Сначала текст от AI (приветствие + ответ)
+        const result = await this.handleFakeIncoming({
+          tenantId: lead.tenantId,
+          leadId: lead.id,
+          text: batchText,
+          skipSaveIncoming: true,
+        });
+        if (result.reply) {
+          await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
+        }
+
+        // 2) Затем приветственные голос, фото, адрес по теме
         if (topic) {
           const hasVoice = !!topic.welcomeVoiceUrl?.trim();
           const hasImages = !!(topic.welcomeImageUrl?.trim() || ((topic.welcomeImageUrls as string[] | null) ?? []).some((u) => typeof u === 'string' && u.trim()));
@@ -846,15 +858,6 @@ export class AiService {
           if (asksAddress && topic.addressText?.trim()) {
             await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);
           }
-        }
-        const result = await this.handleFakeIncoming({
-          tenantId: lead.tenantId,
-          leadId: lead.id,
-          text: batchText,
-          skipSaveIncoming: true,
-        });
-        if (result.reply) {
-          await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
         }
       } catch (err) {
         await this.logs.log({

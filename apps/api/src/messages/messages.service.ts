@@ -185,17 +185,30 @@ export class MessagesService {
       try {
         data = JSON.parse(text) as { success?: boolean; error?: string };
       } catch {
-        this.logger.warn(`sendMediaToLead FAIL: ChatFlow returned HTML instead of JSON status=${res.status} tenantId=${tenantId} leadId=${leadId} body=${text.slice(0, 200)}`);
-        return false;
+        this.logger.warn(`sendMediaToLead: ChatFlow returned HTML (send-media не поддерживается), отправляю ссылку текстом tenantId=${tenantId} leadId=${leadId}`);
+        return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
       }
       const ok = data?.success === true;
       if (!ok) {
         this.logger.warn(`sendMediaToLead FAIL: ChatFlow API tenantId=${tenantId} leadId=${leadId} status=${res.status} response=${text.slice(0, 300)}`);
+        return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
       }
       return ok;
     } catch (err) {
       this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} error=${(err as Error).message}`);
-      return false;
+      return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
     }
+  }
+
+  /** Fallback: отправить ссылку на медиа текстом (ChatFlow не имеет send-media). */
+  private sendMediaLinkAsText(
+    tenantId: string,
+    leadId: string,
+    mediaUrl: string,
+    type: 'audio' | 'image' | 'document',
+  ): Promise<boolean> {
+    const label = type === 'audio' ? '🎵 Голосовое' : type === 'image' ? '🖼 Фото' : '📎 Документ';
+    const body = `${label}: ${mediaUrl}`;
+    return this.sendToLead(tenantId, leadId, body);
   }
 }
