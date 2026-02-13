@@ -170,30 +170,46 @@ export class MessagesService {
     }
     const jid = `${phone}@s.whatsapp.net`;
     const mediaType = type === 'audio' ? 'ptt' : type;
-    try {
-      const apiUrl = 'https://app.chatflow.kz/api/v1/send-media';
-      const params = new URLSearchParams({
-        token: settings.chatflowApiToken!,
-        instance_id: instanceId,
-        jid,
-        url: mediaUrl.trim(),
-        type: mediaType,
+    const baseUrl = 'https://app.chatflow.kz/api/v1';
+    const payload = {
+      token: settings.chatflowApiToken!,
+      instance_id: instanceId,
+      jid,
+      url: mediaUrl.trim(),
+      type: mediaType,
+    };
+
+    const tryFetch = async (method: 'GET' | 'POST', body?: string, contentType?: string): Promise<{ ok: boolean; text: string; res: Response }> => {
+      const url = method === 'GET' ? `${baseUrl}/send-media?${new URLSearchParams(payload as Record<string, string>).toString()}` : `${baseUrl}/send-media`;
+      const res = await fetch(url, {
+        method,
+        ...(body !== undefined && { headers: contentType ? { 'Content-Type': contentType } : {}, body }),
       });
-      const res = await fetch(`${apiUrl}?${params.toString()}`, { method: 'GET' });
       const text = await res.text();
-      let data: { success?: boolean; error?: string } = {};
+      let parsed: { success?: boolean } = {};
       try {
-        data = JSON.parse(text) as { success?: boolean; error?: string };
+        parsed = JSON.parse(text) as { success?: boolean };
       } catch {
+        return { ok: false, text, res };
+      }
+      return { ok: parsed?.success === true, text, res };
+    };
+
+    try {
+      let result = await tryFetch('GET');
+      if (!result.ok && result.text.trimStart().startsWith('<!')) {
+        result = await tryFetch('POST', new URLSearchParams(payload as Record<string, string>).toString(), 'application/x-www-form-urlencoded');
+      }
+      if (!result.ok && result.text.trimStart().startsWith('<!')) {
+        result = await tryFetch('POST', JSON.stringify(payload), 'application/json');
+      }
+      if (result.ok) return true;
+      if (result.text.trimStart().startsWith('<!')) {
         this.logger.warn(`sendMediaToLead: ChatFlow returned HTML (send-media не поддерживается), отправляю ссылку текстом tenantId=${tenantId} leadId=${leadId}`);
         return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
       }
-      const ok = data?.success === true;
-      if (!ok) {
-        this.logger.warn(`sendMediaToLead FAIL: ChatFlow API tenantId=${tenantId} leadId=${leadId} status=${res.status} response=${text.slice(0, 300)}`);
-        return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
-      }
-      return ok;
+      this.logger.warn(`sendMediaToLead FAIL: ChatFlow API tenantId=${tenantId} leadId=${leadId} response=${result.text.slice(0, 300)}`);
+      return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
     } catch (err) {
       this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} error=${(err as Error).message}`);
       return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
