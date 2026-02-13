@@ -6,4 +6,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [ConfigController],
 })
-export class ConfigModule {}
+export class TenantConfigModule {}

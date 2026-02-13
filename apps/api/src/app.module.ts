@@ -18,7 +18,7 @@ import { ChannelsModule } from './channels/channels.module';
 import { TopicsModule } from './topics/topics.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { UploadModule } from './upload/upload.module';
-import { ConfigModule } from './config/config.module';
+import { TenantConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -37,7 +37,7 @@ import { ConfigModule } from './config/config.module';
     TopicsModule,
     QuickRepliesModule,
     UploadModule,
-    ConfigModule,
+    TenantConfigModule,
     AdminModule,
     SystemModule,
     AiModule,
