@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { FollowupsSchedulerService } from '../followups/followups.scheduler.service';
 import { TranscribeService } from './transcribe.service';
+import { AiService } from '../ai/ai.service';
 
 /** Нормализует номер телефона до цифр (для поиска лида). */
 function normalizePhone(v: unknown): string {
@@ -177,6 +178,7 @@ export class WebhooksController {
     private messages: MessagesService,
     private followups: FollowupsSchedulerService,
     private transcribe: TranscribeService,
+    private ai: AiService,
   ) {}
 
   /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
@@ -313,7 +315,7 @@ export class WebhooksController {
       }
     }
 
-    // Этап 3: сохраняем входящее, откладываем ответ на 1 мин (пачка сообщений → один ответ).
+    // Этап 3: сохраняем входящее
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
       direction: MessageDirection.in,
@@ -321,6 +323,36 @@ export class WebhooksController {
     });
     this.followups.cancelLeadFollowUps(lead.id);
 
+    // Режим «приветствие»: не планируем крон, сразу генерируем ответ и возвращаем reply + URL медиа. Отправку делает ChatFlow (текст через send-text, медиа — своими узлами).
+    const isWelcome = query.welcome === true || query.welcome === '1' || body.welcome === true || body.welcome === '1';
+    if (isWelcome) {
+      const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
+      if (settings?.aiEnabled && lead.aiActive) {
+        const result = await this.ai.handleFakeIncoming({
+          tenantId,
+          leadId: lead.id,
+          text: messageBody,
+          skipSaveIncoming: true,
+        });
+        const topicSlug = detectTopicSlug(messageBody);
+        const mediaUrls = await this.getWelcomeMediaUrls(tenantId, topicSlug);
+        await this.logs.log({
+          tenantId,
+          category: 'whatsapp',
+          message: 'ChatFlow welcome webhook: returning reply + media URLs for flow to send',
+          meta: { leadId: lead.id, hasReply: !!result.reply, hasVoice: !!mediaUrls.welcomeVoiceUrl, imagesCount: mediaUrls.welcomeImageUrls?.length ?? 0 },
+        });
+        return {
+          received: true,
+          tenantId,
+          reply: result.reply ?? null,
+          ...mediaUrls,
+        };
+      }
+      return { received: true, tenantId, reply: null };
+    }
+
+    // Обычный режим: откладываем ответ на 1 мин (крон отправит текст + попытается медиа).
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
     });
