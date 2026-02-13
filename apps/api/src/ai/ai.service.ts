@@ -782,7 +782,22 @@ export class AiService {
           : null;
         if (topic) {
           if (isFirstMessage && topic.welcomeVoiceUrl?.trim()) {
-            await this.messages.sendMediaToLead(lead.tenantId, lead.id, topic.welcomeVoiceUrl.trim(), 'audio');
+            const voiceUrl = topic.welcomeVoiceUrl.trim();
+            await this.logs.log({
+              tenantId: lead.tenantId,
+              category: 'ai',
+              message: `Приветственное голосовое: topic=${topic.name} leadId=${lead.id} url=${voiceUrl}`,
+              meta: { leadId: lead.id, topicId: topic.id, url: voiceUrl },
+            });
+            const ok = await this.messages.sendMediaToLead(lead.tenantId, lead.id, voiceUrl, 'audio');
+            if (!ok) {
+              await this.logs.log({
+                tenantId: lead.tenantId,
+                category: 'ai',
+                message: `sendMediaToLead FAIL (audio) для лида ${lead.id}, url=${voiceUrl}. Проверь логи API.`,
+                meta: { leadId: lead.id, url: voiceUrl },
+              });
+            }
           }
           if (isFirstMessage || asksPhoto) {
             const imageUrls: string[] = [];
@@ -792,7 +807,21 @@ export class AiService {
               if (typeof u === 'string' && u.trim()) imageUrls.push(u.trim());
             }
             for (const url of imageUrls) {
-              await this.messages.sendMediaToLead(lead.tenantId, lead.id, url, 'image');
+              await this.logs.log({
+                tenantId: lead.tenantId,
+                category: 'ai',
+                message: `Приветственное фото: topic=${topic.name} leadId=${lead.id} url=${url}`,
+                meta: { leadId: lead.id, topicId: topic.id, url },
+              });
+              const ok = await this.messages.sendMediaToLead(lead.tenantId, lead.id, url, 'image');
+              if (!ok) {
+                await this.logs.log({
+                  tenantId: lead.tenantId,
+                  category: 'ai',
+                  message: `sendMediaToLead FAIL (image) для лида ${lead.id}, url=${url}. Проверь логи API.`,
+                  meta: { leadId: lead.id, url },
+                });
+              }
             }
           }
           if (asksAddress && topic.addressText?.trim()) {

@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessageSource, MessageDirection } from '@prisma/client';
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async listByLead(tenantId: string, leadId: string) {
@@ -139,7 +141,14 @@ export class MessagesService {
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
     });
-    if (!lead || !mediaUrl?.trim()) return false;
+    if (!lead || !mediaUrl?.trim()) {
+      this.logger.warn(`sendMediaToLead skip: lead=${leadId} mediaUrl=${mediaUrl ? 'empty' : 'missing'}`);
+      return false;
+    }
+    if (mediaUrl.includes('localhost')) {
+      this.logger.warn(`sendMediaToLead FAIL: mediaUrl contains localhost (ChatFlow cannot fetch) tenantId=${tenantId} leadId=${leadId} url=${mediaUrl}`);
+      return false;
+    }
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
     });
@@ -150,9 +159,15 @@ export class MessagesService {
       });
       if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
     }
-    if (!settings?.chatflowApiToken || !instanceId) return false;
+    if (!settings?.chatflowApiToken || !instanceId) {
+      this.logger.warn(`sendMediaToLead FAIL: no chatflowApiToken or instanceId tenantId=${tenantId} leadId=${leadId} hasToken=${!!settings?.chatflowApiToken} instanceId=${instanceId ?? 'null'}`);
+      return false;
+    }
     const phone = String(lead.phone).replace(/\D/g, '');
-    if (phone.length < 10) return false;
+    if (phone.length < 10) {
+      this.logger.warn(`sendMediaToLead FAIL: invalid phone tenantId=${tenantId} leadId=${leadId} phone=${lead.phone}`);
+      return false;
+    }
     const jid = `${phone}@s.whatsapp.net`;
     try {
       const url = new URL('https://app.chatflow.kz/api/v1/send-media');
@@ -162,9 +177,14 @@ export class MessagesService {
       url.searchParams.set('url', mediaUrl.trim());
       url.searchParams.set('type', type === 'audio' ? 'ptt' : type);
       const res = await fetch(url.toString());
-      const data = (await res.json()) as { success?: boolean };
-      return data?.success === true;
-    } catch {
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      const ok = data?.success === true;
+      if (!ok) {
+        this.logger.warn(`sendMediaToLead FAIL: ChatFlow API returned not success tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} response=${JSON.stringify(data)}`);
+      }
+      return ok;
+    } catch (err) {
+      this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} error=${(err as Error).message}`);
       return false;
     }
   }

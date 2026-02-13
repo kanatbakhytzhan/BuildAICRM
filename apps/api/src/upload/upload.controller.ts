@@ -1,4 +1,5 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -50,9 +51,14 @@ export class UploadController {
       }),
     }),
   )
-  upload(@UploadedFile() file: Express.Multer.File) {
+  upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
     if (!file) throw new BadRequestException('Файл не загружен');
-    const baseUrl = process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}`;
+    let baseUrl = process.env.API_URL || process.env.PUBLIC_URL;
+    if (!baseUrl) {
+      const proto = req.get('x-forwarded-proto') || (req.protocol === 'https' ? 'https' : 'http');
+      const host = req.get('x-forwarded-host') || req.get('host') || `localhost:${process.env.PORT || 4000}`;
+      baseUrl = `${proto}://${host}`;
+    }
     const url = `${baseUrl.replace(/\/$/, '')}/uploads/${file.filename}`;
     return { url };
   }
