@@ -162,3 +162,33 @@ BuildCRM понимает payload вида `{ "instanceId": "...", "sender": { "
 Если токен/instance не заданы, в ответе вебхука по-прежнему приходит поле **`reply`**. В конструкторе добавь шаг: **GET** на `https://app.chatflow.kz/api/v1/send-text` с параметрами `token`, `instance_id`, `jid` (номер отправителя в формате `79991234567@s.whatsapp.net`), `msg` = значение **`reply`** из ответа нашего вебхука.
 
 Конструктор: **триггер → POST на наш вебхук** и (при варианте B) **→ GET send-text с msg=reply**.
+
+---
+
+## 5. Голосовые и фото (приветственное медиа)
+
+API ChatFlow (app.chatflow.kz) **не имеет endpoint send-media** — при вызове `send-media` возвращается HTML вместо JSON. Текстовые сообщения отправляются через **send-text** (работает).
+
+**Вариант: настроить поток ChatFlow на отправку медиа**
+
+Ответ вебхука теперь содержит поля **`welcomeVoiceUrl`** и **`welcomeImageUrls`** (если тема определена и в теме настроены голос/фото):
+
+```json
+{
+  "received": true,
+  "tenantId": "seed-tenant-1",
+  "reply": null,
+  "scheduledIn": 30,
+  "topic": "panels",
+  "welcomeVoiceUrl": "https://buildcrm-api.onrender.com/uploads/xxx.ogg",
+  "welcomeImageUrls": ["https://buildcrm-api.onrender.com/uploads/yyy.png"]
+}
+```
+
+**Что сделать в ChatFlow:**
+
+1. После узла **«Вызвать вебхук»** добавь проверку: если в ответе есть **`welcomeVoiceUrl`**.
+2. Добавь узел **«Отправить голосовое/аудио»** или аналогичный — если ChatFlow поддерживает **отправку по URL** (вместо загруженного файла), подставь `welcomeVoiceUrl` из ответа вебхука.
+3. Аналогично для фото: если есть **`welcomeImageUrls`** — для каждого URL узел «Отправить изображение» (по URL, если поддерживается).
+
+Если ChatFlow **не поддерживает отправку медиа по URL** (только статичные загруженные файлы) — загрузите голос и фото в ChatFlow вручную и добавьте узлы отправки по веткам **topic** (panels / laminate / linoleum / tractor), как описано в `PROMPT-AI-MANAGER-FULL.md`.
