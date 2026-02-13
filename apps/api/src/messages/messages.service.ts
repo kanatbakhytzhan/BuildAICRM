@@ -169,18 +169,28 @@ export class MessagesService {
       return false;
     }
     const jid = `${phone}@s.whatsapp.net`;
+    const mediaType = type === 'audio' ? 'ptt' : type;
     try {
-      const url = new URL('https://app.chatflow.kz/api/v1/send-media');
-      url.searchParams.set('token', settings.chatflowApiToken);
-      url.searchParams.set('instance_id', instanceId);
-      url.searchParams.set('jid', jid);
-      url.searchParams.set('url', mediaUrl.trim());
-      url.searchParams.set('type', type === 'audio' ? 'ptt' : type);
-      const res = await fetch(url.toString());
-      const data = (await res.json()) as { success?: boolean; error?: string };
+      const apiUrl = 'https://app.chatflow.kz/api/v1/send-media';
+      const params = new URLSearchParams({
+        token: settings.chatflowApiToken!,
+        instance_id: instanceId,
+        jid,
+        url: mediaUrl.trim(),
+        type: mediaType,
+      });
+      const res = await fetch(`${apiUrl}?${params.toString()}`, { method: 'GET' });
+      const text = await res.text();
+      let data: { success?: boolean; error?: string } = {};
+      try {
+        data = JSON.parse(text) as { success?: boolean; error?: string };
+      } catch {
+        this.logger.warn(`sendMediaToLead FAIL: ChatFlow returned HTML instead of JSON status=${res.status} tenantId=${tenantId} leadId=${leadId} body=${text.slice(0, 200)}`);
+        return false;
+      }
       const ok = data?.success === true;
       if (!ok) {
-        this.logger.warn(`sendMediaToLead FAIL: ChatFlow API returned not success tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} response=${JSON.stringify(data)}`);
+        this.logger.warn(`sendMediaToLead FAIL: ChatFlow API tenantId=${tenantId} leadId=${leadId} status=${res.status} response=${text.slice(0, 300)}`);
       }
       return ok;
     } catch (err) {
