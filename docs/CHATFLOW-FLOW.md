@@ -180,7 +180,7 @@ BuildCRM понимает payload вида `{ "instanceId": "...", "sender": { "
   - `welcomeVoiceUrl` — ссылка на голосовое (если настроено по теме),
   - `welcomeImageUrls` — массив ссылок на фото.
 - **Шаг 2 в ChatFlow:** отправить текст — GET `send-text` с `msg` = значение **`reply`** из ответа.
-- **Шаг 3 (если есть медиа):** для каждого URL из `welcomeVoiceUrl` и `welcomeImageUrls` — отправить медиа в WhatsApp. В конструкторе используй узел **«Отправить медиа по URL»** или **HTTP Request** к API отправки медиа (если у ChatFlow есть такой endpoint). Тогда голос и фото придут в чат как обычные сообщения WhatsApp.
+- **Шаг 3 (если есть медиа):** для каждого URL из `welcomeVoiceUrl` и `welcomeImageUrls` — отправить медиа в WhatsApp. Подключи узлы **«Аудиосообщение»** и **«Изображение»** после вебхука и в поле URL/ссылка подставь переменные из ответа (`welcomeVoiceUrl`, `welcomeImageUrls[0]` и т.д.). Подробно: **см. [CHATFLOW-MEDIA-NODES.md](CHATFLOW-MEDIA-NODES.md)** — какие переменные писать и куда подключать узлы.
 
 Мы **не отправляем** сообщения сами в режиме welcome — только возвращаем JSON. Всю отправку (текст и медиа) делает твой поток в ChatFlow.
 
