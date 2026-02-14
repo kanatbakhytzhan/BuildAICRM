@@ -546,14 +546,11 @@ export default function LeadDetailPage() {
                       }}
                     >
                       {m.mediaUrl ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <audio
-                            controls
-                            src={m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl}
-                            style={{ maxWidth: '100%', height: 36, minWidth: 200 }}
-                          />
-                          {m.body && <span>{m.body}</span>}
-                        </div>
+                        <audio
+                          controls
+                          src={m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl}
+                          style={{ maxWidth: '100%', height: 36, minWidth: 200 }}
+                        />
                       ) : (
                         m.body
                       )}

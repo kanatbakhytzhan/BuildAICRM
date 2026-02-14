@@ -287,35 +287,12 @@ export class WebhooksController {
       await this.prisma.lead.update({ where: { id: lead.id }, data: { name: senderName } });
     }
 
-    let messageBody = text;
     const mediaData = body.mediaData as Record<string, unknown> | undefined;
     const isVoice = text === '[Голосовое сообщение]' && mediaData && typeof mediaData === 'object'
       && typeof mediaData.type === 'string' && mediaData.type.toLowerCase() === 'audio'
       && typeof mediaData.url === 'string' && (mediaData.url as string).trim();
-    if (isVoice) {
-      const settings = await this.prisma.tenantSettings.findUnique({
-        where: { tenantId },
-        select: { openaiApiKey: true },
-      });
-      if (settings?.openaiApiKey?.startsWith('sk-')) {
-        // Если в последних сообщениях лида есть казахские буквы — передаём language: 'kk' для лучшего распознавания
-        const recent = await this.prisma.message.findMany({
-          where: { leadId: lead.id },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: { body: true },
-        });
-        const hasKazakh = recent.some((m) => m.body != null && /[әғқңүұһөі]/i.test(m.body));
-        const transcript = await this.transcribe.transcribeFromUrl(
-          (mediaData!.url as string).trim(),
-          settings.openaiApiKey,
-          { language: hasKazakh ? 'kk' : undefined },
-        );
-        if (transcript) messageBody = transcript;
-      }
-    }
-
-    // Этап 3: сохраняем входящее (для голосовых — сохраняем и ссылку на аудио, чтобы в CRM можно было слушать)
+    // Голосовые сохраняем без текста — только аудио (без расшифровки)
+    const messageBody = isVoice ? '' : text;
     const incomingMediaUrl = isVoice && typeof mediaData!.url === 'string' ? (mediaData!.url as string).trim() : undefined;
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
