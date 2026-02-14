@@ -752,11 +752,8 @@ export class AiService {
       });
       if (!batchText.trim()) continue;
       try {
-        const inCount = allMessages.filter((m) => m.direction === MessageDirection.in).length;
-        const isFirstMessage = inCount <= 2;
         const lower = batchText.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
         const asksAddress = /адрес|где\s+(вы|находитесь|офис|склад)|местоположение|location|мекенжай|мекен-жай/.test(lower);
-        const asksPhoto = /фото|прайс|каталог|презентация|жоба|сұрақтар|сурактар/.test(lower);
         const topicKeywords: Record<string, string[]> = {
           погрузчик: ['погрузчик', 'трактор', 'техника'],
           трактор: ['погрузчик', 'трактор', 'техника'],
@@ -800,64 +797,9 @@ export class AiService {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
         }
 
-        // 2) Затем приветственные голос, фото, адрес по теме
-        if (topic) {
-          const hasVoice = !!topic.welcomeVoiceUrl?.trim();
-          const hasImages = !!(topic.welcomeImageUrl?.trim() || ((topic.welcomeImageUrls as string[] | null) ?? []).some((u) => typeof u === 'string' && u.trim()));
-          if (isFirstMessage && (hasVoice || hasImages)) {
-            await this.logs.log({
-              tenantId: lead.tenantId,
-              category: 'ai',
-              message: `Приветственное медиа: topic=${topic.name} leadId=${lead.id} isFirst=${isFirstMessage} inCount=${inCount} hasVoice=${hasVoice} hasImages=${hasImages}`,
-              meta: { leadId: lead.id, topicId: topic.id },
-            });
-          }
-          if (isFirstMessage && topic.welcomeVoiceUrl?.trim()) {
-            const voiceUrl = topic.welcomeVoiceUrl.trim();
-            await this.logs.log({
-              tenantId: lead.tenantId,
-              category: 'ai',
-              message: `Приветственное голосовое: topic=${topic.name} leadId=${lead.id} url=${voiceUrl}`,
-              meta: { leadId: lead.id, topicId: topic.id, url: voiceUrl },
-            });
-            const ok = await this.messages.sendMediaToLead(lead.tenantId, lead.id, voiceUrl, 'audio');
-            if (!ok) {
-              await this.logs.log({
-                tenantId: lead.tenantId,
-                category: 'ai',
-                message: `sendMediaToLead FAIL (audio) для лида ${lead.id}, url=${voiceUrl}. Проверь логи API.`,
-                meta: { leadId: lead.id, url: voiceUrl },
-              });
-            }
-          }
-          if (isFirstMessage || asksPhoto) {
-            const imageUrls: string[] = [];
-            if (topic.welcomeImageUrl?.trim()) imageUrls.push(topic.welcomeImageUrl.trim());
-            const extra = (topic.welcomeImageUrls as string[] | null) ?? [];
-            for (const u of extra) {
-              if (typeof u === 'string' && u.trim()) imageUrls.push(u.trim());
-            }
-            for (const url of imageUrls) {
-              await this.logs.log({
-                tenantId: lead.tenantId,
-                category: 'ai',
-                message: `Приветственное фото: topic=${topic.name} leadId=${lead.id} url=${url}`,
-                meta: { leadId: lead.id, topicId: topic.id, url },
-              });
-              const ok = await this.messages.sendMediaToLead(lead.tenantId, lead.id, url, 'image');
-              if (!ok) {
-                await this.logs.log({
-                  tenantId: lead.tenantId,
-                  category: 'ai',
-                  message: `sendMediaToLead FAIL (image) для лида ${lead.id}, url=${url}. Проверь логи API.`,
-                  meta: { leadId: lead.id, url },
-                });
-              }
-            }
-          }
-          if (asksAddress && topic.addressText?.trim()) {
-            await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);
-          }
+        // Адрес по теме (когда клиент спрашивает)
+        if (topic && asksAddress && topic.addressText?.trim()) {
+          await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);
         }
       } catch (err) {
         await this.logs.log({

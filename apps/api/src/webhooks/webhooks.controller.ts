@@ -334,19 +334,10 @@ export class WebhooksController {
           text: messageBody,
           skipSaveIncoming: true,
         });
-        const topicSlug = detectTopicSlug(messageBody);
-        const mediaUrls = await this.getWelcomeMediaUrls(tenantId, topicSlug);
-        await this.logs.log({
-          tenantId,
-          category: 'whatsapp',
-          message: 'ChatFlow welcome webhook: returning reply + media URLs for flow to send',
-          meta: { leadId: lead.id, hasReply: !!result.reply, hasVoice: !!mediaUrls.welcomeVoiceUrl, imagesCount: mediaUrls.welcomeImageUrls?.length ?? 0 },
-        });
         return {
           received: true,
           tenantId,
           reply: result.reply ?? null,
-          ...mediaUrls,
         };
       }
       return { received: true, tenantId, reply: null };
@@ -363,48 +354,11 @@ export class WebhooksController {
       });
     }
 
-    const topicSlug = detectTopicSlug(messageBody);
-    const mediaUrls = await this.getWelcomeMediaUrls(tenantId, topicSlug);
     return {
       received: true,
       tenantId,
       reply: null,
       scheduledIn: 30,
-      topic: topicSlug ?? undefined,
-      ...mediaUrls,
-    };
-  }
-
-  /** По slug темы возвращает welcomeVoiceUrl и welcomeImageUrls (для узлов ChatFlow). */
-  private async getWelcomeMediaUrls(
-    tenantId: string,
-    topicSlug: string | null,
-  ): Promise<{ welcomeVoiceUrl?: string; welcomeImageUrls?: string[] }> {
-    if (!topicSlug) return {};
-    const slugToName: Record<string, string[]> = {
-      panels: ['панель', 'панел', 'сэндвич', 'фасад'],
-      laminate: ['ламинат'],
-      linoleum: ['линолеум'],
-      tractor: ['погрузчик', 'трактор', 'техника'],
-    };
-    const names = slugToName[topicSlug];
-    if (!names) return {};
-    const topics = await this.prisma.tenantTopic.findMany({
-      where: { tenantId },
-      select: { welcomeVoiceUrl: true, welcomeImageUrl: true, welcomeImageUrls: true, name: true },
-    });
-    const norm = (s: string) => s.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
-    const topic = topics.find((t) => names.some((n) => norm(t.name).includes(n) || norm(t.name).includes(n.replace(/л$/, 'ль'))));
-    if (!topic) return {};
-    const imageUrls: string[] = [];
-    if (topic.welcomeImageUrl?.trim()) imageUrls.push(topic.welcomeImageUrl.trim());
-    const extra = (topic.welcomeImageUrls as string[] | null) ?? [];
-    for (const u of extra) {
-      if (typeof u === 'string' && u.trim()) imageUrls.push(u.trim());
-    }
-    return {
-      ...(topic.welcomeVoiceUrl?.trim() && { welcomeVoiceUrl: topic.welcomeVoiceUrl.trim() }),
-      ...(imageUrls.length > 0 && { welcomeImageUrls: imageUrls }),
     };
   }
 
