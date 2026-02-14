@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { users, leads, topics, type User } from '@/lib/api';
 
 const PAGE_SIZE = 10;
@@ -33,6 +34,7 @@ function initials(name: string | null, email: string) {
 }
 
 export default function UsersPage() {
+  const router = useRouter();
   const [list, setList] = useState<User[]>([]);
   const [leadCounts, setLeadCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -57,8 +59,11 @@ export default function UsersPage() {
   const canInvite = currentUser?.role === 'owner' || currentUser?.role === 'rop';
 
   useEffect(() => {
-    users.me().then((u) => setCurrentUser(u)).catch(() => setCurrentUser(null));
-  }, []);
+    users.me().then((u) => {
+      setCurrentUser(u);
+      if (u.role !== 'owner' && u.role !== 'rop') router.replace('/profile');
+    }).catch(() => setCurrentUser(null));
+  }, [router]);
 
   useEffect(() => {
     users.list().then((data) => {

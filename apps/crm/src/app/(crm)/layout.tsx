@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { users } from '@/lib/api';
-import { IconClipboard, IconAlert, IconUsers, IconChart, IconSettings } from '@/components/Icons';
+import { IconClipboard, IconAlert, IconUsers, IconUser, IconChart, IconSettings } from '@/components/Icons';
 
 export default function CrmLayout(props: { children: React.ReactNode }) {
   const { children } = props;
@@ -113,23 +113,43 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           >
             <IconAlert style={{ flexShrink: 0, opacity: 0.9 }} /> Приоритеты
           </Link>
-          <Link
-            href="/users"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '0.6rem 1rem',
-              margin: '0 0.5rem',
-              borderRadius: 'var(--radius)',
-              color: pathname === '/users' ? 'var(--accent)' : 'var(--text)',
-              background: pathname === '/users' ? 'var(--accent-light)' : 'transparent',
-              fontWeight: pathname === '/users' ? 600 : 400,
-              textDecoration: 'none',
-            }}
-          >
-            <IconUsers style={{ flexShrink: 0, opacity: 0.9 }} /> Пользователи
-          </Link>
+          {(currentUser?.role === 'owner' || currentUser?.role === 'rop') ? (
+            <Link
+              href="/users"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '0.6rem 1rem',
+                margin: '0 0.5rem',
+                borderRadius: 'var(--radius)',
+                color: pathname === '/users' ? 'var(--accent)' : 'var(--text)',
+                background: pathname === '/users' ? 'var(--accent-light)' : 'transparent',
+                fontWeight: pathname === '/users' ? 600 : 400,
+                textDecoration: 'none',
+              }}
+            >
+              <IconUsers style={{ flexShrink: 0, opacity: 0.9 }} /> Пользователи
+            </Link>
+          ) : (
+            <Link
+              href="/profile"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '0.6rem 1rem',
+                margin: '0 0.5rem',
+                borderRadius: 'var(--radius)',
+                color: pathname === '/profile' ? 'var(--accent)' : 'var(--text)',
+                background: pathname === '/profile' ? 'var(--accent-light)' : 'transparent',
+                fontWeight: pathname === '/profile' ? 600 : 400,
+                textDecoration: 'none',
+              }}
+            >
+              <IconUser style={{ flexShrink: 0, opacity: 0.9 }} /> Профиль
+            </Link>
+          )}
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
             <Link
               href="/analytics"
@@ -199,7 +219,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>SKAI CRM</span>
         </Link>
         <span className="crm-mobile-header-title" style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
-          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : 'SKAI CRM'}
+          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/profile' ? 'Профиль' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : 'SKAI CRM'}
         </span>
       </header>
       <main className="crm-main">
@@ -218,12 +238,21 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           </span>
           <span>Приоритеты</span>
         </Link>
-        <Link href="/users" style={navLink('/users', 'Пользователи', pathname === '/users')}>
-          <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          </span>
-          <span>Пользователь</span>
-        </Link>
+        {(currentUser?.role === 'owner' || currentUser?.role === 'rop') ? (
+          <Link href="/users" style={navLink('/users', 'Пользователи', pathname === '/users')}>
+            <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            </span>
+            <span>Пользователи</span>
+          </Link>
+        ) : (
+          <Link href="/profile" style={navLink('/profile', 'Профиль', pathname === '/profile')}>
+            <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <span>Профиль</span>
+          </Link>
+        )}
         {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
           <Link href="/analytics" style={navLink('/analytics', 'Аналитика', pathname === '/analytics')}>
             <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
