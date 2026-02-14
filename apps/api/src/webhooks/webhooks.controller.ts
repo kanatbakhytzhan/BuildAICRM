@@ -125,8 +125,26 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
   // Идентификатор канала/номера (ChatFlow: instance_id — один webhook на несколько номеров)
   let channelExternalId: string | undefined;
   if (typeof body.instance_id === 'string' && body.instance_id.trim()) channelExternalId = body.instance_id.trim();
-  if (metadata?.instance_id !== undefined && typeof metadata.instance_id === 'string') channelExternalId = metadata.instance_id.trim();
-  if (typeof body.channelId === 'string' && body.channelId.trim()) channelExternalId = body.channelId.trim();
+  if (!channelExternalId && metadata?.instance_id !== undefined && typeof metadata.instance_id === 'string') channelExternalId = (metadata.instance_id as string).trim();
+  if (!channelExternalId && typeof body.channelId === 'string' && body.channelId.trim()) channelExternalId = body.channelId.trim();
+  const metaContext = metadata?.context as Record<string, unknown> | undefined;
+  if (!channelExternalId && metaContext?.instance_id !== undefined && typeof metaContext.instance_id === 'string') channelExternalId = (metaContext.instance_id as string).trim();
+  if (!channelExternalId && metaContext?.instanceId !== undefined && typeof metaContext.instanceId === 'string') channelExternalId = (metaContext.instanceId as string).trim();
+  const bodyContext = body.context as Record<string, unknown> | undefined;
+  if (!channelExternalId && bodyContext?.instance_id !== undefined && typeof bodyContext.instance_id === 'string') channelExternalId = (bodyContext.instance_id as string).trim();
+  if (!channelExternalId && bodyContext?.instanceId !== undefined && typeof bodyContext.instanceId === 'string') channelExternalId = (bodyContext.instanceId as string).trim();
+  if (!channelExternalId && messages && Array.isArray(messages) && messages.length > 0) {
+    const firstCtx = (messages[0] as Record<string, unknown>)?.context as Record<string, unknown> | undefined;
+    if (firstCtx?.instance_id !== undefined && typeof firstCtx.instance_id === 'string') channelExternalId = (firstCtx.instance_id as string).trim();
+    else if (firstCtx?.instanceId !== undefined && typeof firstCtx.instanceId === 'string') channelExternalId = (firstCtx.instanceId as string).trim();
+  }
+  if (!channelExternalId && data?.instance_id !== undefined && typeof data.instance_id === 'string') channelExternalId = (data.instance_id as string).trim();
+  if (!channelExternalId && payload?.instance_id !== undefined && typeof payload.instance_id === 'string') channelExternalId = (payload.instance_id as string).trim();
+  const entryValue = Array.isArray(entry) && entry[0]?.changes?.[0]?.value as Record<string, unknown> | undefined;
+  if (!channelExternalId && entryValue?.metadata) {
+    const em = entryValue.metadata as Record<string, unknown>;
+    if (typeof em.instance_id === 'string' && em.instance_id.trim()) channelExternalId = (em.instance_id as string).trim();
+  }
 
   const normalizedPhone = phone ? normalizePhone(phone) : '';
   if (!text || text.trim() === '' || normalizedPhone.length < 10) return null;
@@ -256,10 +274,13 @@ export class WebhooksController {
     });
     const resolvedChannelId = channel?.id ?? null;
 
-    const leadWhere = resolvedChannelId != null
-      ? { tenantId, phone, channelId: resolvedChannelId }
-      : { tenantId, phone };
-    let lead = await this.prisma.lead.findFirst({ where: leadWhere });
+    let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
+    if (lead && !lead.channelId && resolvedChannelId) {
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { channelId: resolvedChannelId },
+      });
+    }
     if (!lead) {
       const firstStage = await this.prisma.pipelineStage.findFirst({
         where: { tenantId },
@@ -410,8 +431,13 @@ export class WebhooksController {
       where: { tenantId, externalId: channelExternalId || 'default' },
     });
     const resolvedChannelId = channel?.id ?? null;
-    const leadWhere = resolvedChannelId != null ? { tenantId, phone, channelId: resolvedChannelId } : { tenantId, phone };
-    let lead = await this.prisma.lead.findFirst({ where: leadWhere });
+    let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
+    if (lead && !lead.channelId && resolvedChannelId) {
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { channelId: resolvedChannelId },
+      });
+    }
     if (!lead) {
       const firstStage = await this.prisma.pipelineStage.findFirst({ where: { tenantId }, orderBy: { order: 'asc' } });
       if (!firstStage) return { received: true, tenantId, reply: null, debug: { reason: 'no_pipeline_stages' } };
