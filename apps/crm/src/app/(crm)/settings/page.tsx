@@ -21,9 +21,6 @@ export default function SettingsPage() {
   const [editStageTopicId, setEditStageTopicId] = useState<string>('');
   const [editTopic, setEditTopic] = useState<Topic | null>(null);
   const [editTopicName, setEditTopicName] = useState('');
-  const [editTopicScenario, setEditTopicScenario] = useState('');
-  const [editTopicMedia, setEditTopicMedia] = useState('');
-  const [editTopicAddress, setEditTopicAddress] = useState('');
   const [qrLabel, setQrLabel] = useState('');
   const [qrMessageText, setQrMessageText] = useState('');
   const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
@@ -95,9 +92,6 @@ export default function SettingsPage() {
               <button type="button" onClick={() => {
                 setEditTopic(t);
                 setEditTopicName(t.name);
-                setEditTopicScenario(t.scenarioText ?? '');
-                setEditTopicMedia(t.mediaUrl ?? '');
-                setEditTopicAddress(t.addressText ?? '');
               }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
@@ -117,22 +111,11 @@ export default function SettingsPage() {
           <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
             <div style={{ fontWeight: 600, marginBottom: 8 }}>Редактировать тему: {editTopic.name}</div>
             <input type="text" placeholder="Название" value={editTopicName} onChange={(e) => setEditTopicName(e.target.value)} style={{ width: '100%', maxWidth: 280, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
-            <textarea placeholder="Сценарий для AI (инструкция по теме)" value={editTopicScenario} onChange={(e) => setEditTopicScenario(e.target.value)} rows={4} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
-            <input type="url" placeholder="Ссылка на медиа (когда готово)" value={editTopicMedia} onChange={(e) => setEditTopicMedia(e.target.value)} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
-            <textarea placeholder="Адрес / местоположение" value={editTopicAddress} onChange={(e) => setEditTopicAddress(e.target.value)} rows={2} style={{ width: '100%', maxWidth: 380, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={() => setEditTopic(null)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>Отмена</button>
               <button type="button" onClick={() => {
                 setSaving(true);
-                topics.update(editTopic.id, {
-                  name: editTopicName,
-                  scenarioText: editTopicScenario || null,
-                  mediaUrl: editTopicMedia || null,
-                  welcomeVoiceUrl: null,
-                  welcomeImageUrl: null,
-                  welcomeImageUrls: null,
-                  addressText: editTopicAddress || null,
-                }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
+                topics.update(editTopic.id, { name: editTopicName }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
               }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
             </div>
           </div>

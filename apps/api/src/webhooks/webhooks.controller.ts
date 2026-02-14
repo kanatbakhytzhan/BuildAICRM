@@ -418,14 +418,12 @@ export class WebhooksController {
       });
     }
     const topicSlug = detectTopicSlug(text);
-    const mediaUrls = await this.getWelcomeMediaUrls(tenantId, topicSlug);
     return {
       received: true,
       tenantId,
       reply: null,
       scheduledIn: 30,
       topic: topicSlug ?? undefined,
-      ...mediaUrls,
     };
   }
 }

@@ -568,17 +568,12 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
-    // Этап 4: сценарий по теме лида (панели, ламинат и т.д.) — подставляем в промпт
-    let topicScenario: string | null = null;
     let topicName: string | null = null;
     if (updatedLead.topicId) {
       const topic = await this.prisma.tenantTopic.findFirst({
         where: { id: updatedLead.topicId, tenantId: updatedLead.tenantId },
       });
-      if (topic) {
-        topicScenario = topic.scenarioText ?? null;
-        topicName = topic.name;
-      }
+      if (topic) topicName = topic.name;
     }
 
     // Ответ: OpenAI GPT (если задан ключ у клиента) или шаблон. При батче (skipSaveIncoming) контекст уже в БД, не дублируем.
@@ -592,7 +587,7 @@ export class AiService {
           openaiModel: settings.openaiModel,
           currentUserMessage: skipSaveIncoming ? '' : text,
           leadMetadata: updatedLead.metadata,
-          topicScenario,
+          topicScenario: null,
           topicName,
         });
       } catch (err) {
@@ -752,41 +747,7 @@ export class AiService {
       });
       if (!batchText.trim()) continue;
       try {
-        const lower = batchText.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
-        const asksAddress = /адрес|где\s+(вы|находитесь|офис|склад)|местоположение|location|мекенжай|мекен-жай/.test(lower);
-        const topicKeywords: Record<string, string[]> = {
-          погрузчик: ['погрузчик', 'трактор', 'техника'],
-          трактор: ['погрузчик', 'трактор', 'техника'],
-          ламинат: ['ламинат'],
-          линолеум: ['линолеум'],
-          панел: ['панел', 'панель', 'панелей', 'сэндвич', 'фасад', 'утеплен', 'дом'],
-          панель: ['панел', 'панель', 'панелей', 'сэндвич', 'фасад', 'утеплен', 'дом'],
-        };
-        let topicId = lead.topicId;
-        if (!topicId) {
-          const tenantTopics = await this.prisma.tenantTopic.findMany({ where: { tenantId: lead.tenantId }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } });
-          for (const t of tenantTopics) {
-            const nameNorm = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] ?? c));
-            const keywords = topicKeywords[nameNorm] ?? [nameNorm];
-            if (keywords.some((kw) => lower.includes(kw))) {
-              topicId = t.id;
-              break;
-            }
-          }
-        }
-        const topic = topicId
-          ? await this.prisma.tenantTopic.findFirst({ where: { id: topicId, tenantId: lead.tenantId } })
-          : null;
-        if (!topic && topicId) {
-          await this.logs.log({
-            tenantId: lead.tenantId,
-            category: 'ai',
-            message: `Topic not found topicId=${topicId} leadId=${lead.id}`,
-            meta: { leadId: lead.id, topicId },
-          });
-        }
-
-        // 1) Сначала текст от AI (приветствие + ответ)
+        // Текст от AI (приветствие + ответ)
         const result = await this.handleFakeIncoming({
           tenantId: lead.tenantId,
           leadId: lead.id,
@@ -795,11 +756,6 @@ export class AiService {
         });
         if (result.reply) {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
-        }
-
-        // Адрес по теме (когда клиент спрашивает)
-        if (topic && asksAddress && topic.addressText?.trim()) {
-          await this.messages.sendToLead(lead.tenantId, lead.id, `📍 ${topic.addressText.trim()}`);
         }
       } catch (err) {
         await this.logs.log({
