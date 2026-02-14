@@ -291,8 +291,38 @@ export class WebhooksController {
     const isVoice = text === '[Голосовое сообщение]' && mediaData && typeof mediaData === 'object'
       && typeof mediaData.type === 'string' && mediaData.type.toLowerCase() === 'audio'
       && typeof mediaData.url === 'string' && (mediaData.url as string).trim();
-    // Голосовые сохраняем без текста — только аудио (без расшифровки)
-    const messageBody = isVoice ? '' : text;
+    let messageBody = text;
+    if (isVoice) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { openaiApiKey: true, transcriptionLanguage: true },
+      });
+      if (settings?.openaiApiKey?.startsWith('sk-')) {
+        let lang: 'kk' | 'ru' | undefined =
+          settings.transcriptionLanguage === 'kk' || settings.transcriptionLanguage === 'ru'
+            ? settings.transcriptionLanguage
+            : undefined;
+        if (lang === undefined) {
+          const recent = await this.prisma.message.findMany({
+            where: { leadId: lead.id },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { body: true },
+          });
+          const hasKazakh = recent.some((m) => m.body != null && /[әғқңүұһөі]/i.test(m.body));
+          if (hasKazakh) lang = 'kk';
+        }
+        const transcript = await this.transcribe.transcribeFromUrl(
+          (mediaData!.url as string).trim(),
+          settings.openaiApiKey,
+          { language: lang },
+        );
+        if (transcript) messageBody = transcript;
+        else messageBody = '';
+      } else {
+        messageBody = '';
+      }
+    }
     const incomingMediaUrl = isVoice && typeof mediaData!.url === 'string' ? (mediaData!.url as string).trim() : undefined;
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
