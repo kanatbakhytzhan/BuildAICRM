@@ -315,11 +315,13 @@ export class WebhooksController {
       }
     }
 
-    // Этап 3: сохраняем входящее
+    // Этап 3: сохраняем входящее (для голосовых — сохраняем и ссылку на аудио, чтобы в CRM можно было слушать)
+    const incomingMediaUrl = isVoice && typeof mediaData!.url === 'string' ? (mediaData!.url as string).trim() : undefined;
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
       direction: MessageDirection.in,
       body: messageBody,
+      mediaUrl: incomingMediaUrl,
     });
     this.followups.cancelLeadFollowUps(lead.id);
 

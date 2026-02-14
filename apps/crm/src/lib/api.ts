@@ -157,10 +157,10 @@ export const leads = {
 
 export const messages = {
   list: (leadId: string) => api<Message[]>(`/leads/${leadId}/messages`),
-  create: (leadId: string, body: string) =>
+  create: (leadId: string, body: string, mediaUrl?: string) =>
     api<Message>(`/leads/${leadId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify(mediaUrl ? { body: body || '', mediaUrl } : { body }),
     }),
 };
 

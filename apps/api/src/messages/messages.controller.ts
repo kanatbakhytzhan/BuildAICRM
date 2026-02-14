@@ -3,12 +3,17 @@ import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
 import { RequestUser } from '../auth/jwt.strategy';
-import { IsString } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 import { MessageDirection, MessageSource } from '@prisma/client';
 
 class CreateMessageDto {
+  @IsOptional()
   @IsString()
-  body: string;
+  body?: string;
+
+  @IsOptional()
+  @IsString()
+  mediaUrl?: string;
 }
 
 @Controller('leads/:leadId/messages')
@@ -30,7 +35,8 @@ export class MessagesController {
     return this.messagesService.createForLead(user.tenantId, leadId, {
       source: MessageSource.human,
       direction: MessageDirection.out,
-      body: dto.body,
+      body: dto.body ?? '',
+      mediaUrl: dto.mediaUrl,
     });
   }
 }

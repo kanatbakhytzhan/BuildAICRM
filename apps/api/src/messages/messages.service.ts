@@ -55,10 +55,23 @@ export class MessagesService {
       where: { id: lead.id },
       data: {
         lastMessageAt: now,
-        lastMessagePreview: data.body ? data.body.slice(0, 120) : null,
+        lastMessagePreview: data.body?.trim()
+          ? data.body.slice(0, 120)
+          : data.mediaUrl
+            ? '🎵 Голосовое'
+            : null,
         noResponseSince: data.direction === MessageDirection.out ? now : null,
       },
     });
+
+    // Отправить исходящее голосовое в WhatsApp
+    if (
+      data.direction === MessageDirection.out &&
+      data.source === MessageSource.human &&
+      data.mediaUrl?.trim()
+    ) {
+      await this.sendMediaToLead(tenantId, lead.id, data.mediaUrl.trim(), 'audio');
+    }
 
     // Отправить исходящее текстовое сообщение в WhatsApp
     if (
