@@ -208,14 +208,31 @@ export default function AnalyticsPage() {
           {/* График новых лидов */}
           {data.leadsByPeriod && data.leadsByPeriod.length > 0 && (
             <div style={{ marginBottom: 32 }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Новые лиды по периоду</h3>
-              <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 24px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Новые лиды по периоду</h3>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Всего: <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{data.leadsByPeriod.reduce((s, p) => s + p.count, 0)}</span>
+                </div>
+              </div>
+              <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', padding: '24px 20px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, minHeight: 140 }}>
                   {data.leadsByPeriod.map((p, i) => (
-                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: '100%', maxWidth: 24, height: Math.max(8, (p.count / maxLeads) * 100), background: 'var(--accent)', borderRadius: 4 }} />
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 60 }}>{p.label}</div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{p.count}</div>
+                    <div key={i} style={{ flex: 1, minWidth: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, justifyContent: 'flex-end' }}>
+                        <div
+                          style={{
+                            width: '100%',
+                            maxWidth: 32,
+                            height: Math.max(12, (p.count / maxLeads) * 100),
+                            minHeight: p.count > 0 ? 12 : 4,
+                            background: p.count > 0 ? 'var(--accent)' : 'var(--sidebar-bg)',
+                            borderRadius: 6,
+                            transition: 'height 0.2s ease',
+                          }}
+                        />
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', minHeight: 18 }}>{p.count}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{p.label}</div>
                     </div>
                   ))}
                 </div>
@@ -223,58 +240,84 @@ export default function AnalyticsPage() {
             </div>
           )}
 
-          {/* Performance Breakdown */}
+          {/* Выручка по дням */}
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16, paddingLeft: 4, paddingRight: 4 }}>
-              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Performance Breakdown</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>Выручка по дням</h3>
+              {data.byPeriod.length > 0 && (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Итого: <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatMoney(data.byPeriod.reduce((s, p) => s + p.revenue, 0))}</span>
+                </div>
+              )}
             </div>
-            <div style={{ background: 'var(--surface)', borderRadius: 12, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 16, padding: '12px 24px', background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 1fr) minmax(80px, auto) minmax(100px, 1fr) 120px', gap: 16, padding: '14px 20px', background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 <div>Дата</div>
-                <div>Объём</div>
+                <div style={{ textAlign: 'center' }}>Сделок</div>
+                <div>Прогресс</div>
                 <div style={{ textAlign: 'right' }}>Выручка</div>
               </div>
               {data.byPeriod.length === 0 ? (
-                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-                  Нет данных за выбранный период
+                <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6 }}>
+                  Нет данных за выбранный период.<br />
+                  <span style={{ fontSize: 13 }}>Закройте сделки и укажите сумму — они появятся здесь.</span>
                 </div>
               ) : (
-                <div style={{ borderTop: '1px solid var(--border)' }}>
-                  {data.byPeriod.map((item, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 2fr 1fr',
-                        gap: 16,
-                        padding: '16px 24px',
-                        alignItems: 'center',
-                        borderBottom: i < data.byPeriod.length - 1 ? '1px solid var(--border)' : 'none',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{item.label}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{item.count} сделок</div>
-                      </div>
-                      <div>
-                        <div style={{ height: 10, width: '100%', background: 'var(--sidebar-bg)', borderRadius: 999, overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${maxRevenue ? (item.revenue / maxRevenue) * 100 : 0}%`,
-                              minWidth: item.revenue > 0 ? 8 : 0,
-                              background: 'var(--accent)',
-                              borderRadius: 999,
-                            }}
-                          />
+                <>
+                  <div style={{ borderTop: '1px solid var(--border)' }}>
+                    {data.byPeriod.map((item, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'minmax(90px, 1fr) minmax(80px, auto) minmax(100px, 1fr) 120px',
+                          gap: 16,
+                          padding: '14px 20px',
+                          alignItems: 'center',
+                          borderBottom: i < data.byPeriod.length - 1 ? '1px solid var(--border)' : 'none',
+                          background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 14 }}>{item.label}</div>
+                        <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14 }}>{item.count}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ flex: 1, height: 8, background: 'var(--sidebar-bg)', borderRadius: 999, overflow: 'hidden', minWidth: 0 }}>
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${maxRevenue ? Math.min(100, (item.revenue / maxRevenue) * 100) : 0}%`,
+                                minWidth: item.revenue > 0 ? 4 : 0,
+                                background: item.revenue > 0 ? 'var(--accent)' : 'transparent',
+                                borderRadius: 999,
+                                transition: 'width 0.2s ease',
+                              }}
+                            />
+                          </div>
                         </div>
+                        <div style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{formatMoney(item.revenue)}</div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{formatMoney(item.revenue)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(90px, 1fr) minmax(80px, auto) minmax(100px, 1fr) 120px',
+                      gap: 16,
+                      padding: '14px 20px',
+                      alignItems: 'center',
+                      background: 'var(--sidebar-bg)',
+                      borderTop: '2px solid var(--border)',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      color: 'var(--text)',
+                    }}
+                  >
+                    <div>Итого</div>
+                    <div style={{ textAlign: 'center' }}>{data.byPeriod.reduce((s, p) => s + p.count, 0)}</div>
+                    <div />
+                    <div style={{ textAlign: 'right', color: 'var(--accent)' }}>{formatMoney(data.byPeriod.reduce((s, p) => s + p.revenue, 0))}</div>
+                  </div>
+                </>
               )}
             </div>
           </div>
