@@ -112,7 +112,7 @@ export default function SettingsPage() {
                 setEditTopicWelcomeImage(t.welcomeImageUrl ?? '');
                 setEditTopicWelcomeImageUrls(imgs);
                 setEditTopicAddress(t.addressText ?? '');
-              }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
+              }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
                 onClick={() => {
@@ -120,7 +120,7 @@ export default function SettingsPage() {
                     topics.remove(t.id).then(loadAll).catch((e) => setError(e.message));
                   }
                 }}
-                style={{ fontSize: 12, color: 'var(--danger)' }}
+                style={{ padding: '6px 12px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
               >
                 Удалить
               </button>
@@ -248,7 +248,7 @@ export default function SettingsPage() {
             <li key={qr.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 500 }}>{qr.label}</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>→ {qr.messageText.length > 40 ? qr.messageText.slice(0, 40) + '…' : qr.messageText}</span>
-              <button type="button" onClick={() => { setEditQr(qr); setEditQrLabel(qr.label); setEditQrMessageText(qr.messageText); }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
+              <button type="button" onClick={() => { setEditQr(qr); setEditQrLabel(qr.label); setEditQrMessageText(qr.messageText); }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
                 onClick={() => {
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                     quickReplies.remove(qr.id).then(loadAll).catch((e) => setError(e.message));
                   }
                 }}
-                style={{ fontSize: 12, color: 'var(--danger)' }}
+                style={{ padding: '6px 12px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
               >
                 Удалить
               </button>
@@ -325,7 +325,7 @@ export default function SettingsPage() {
               <span style={{ fontWeight: 600 }}>{idx + 1}. {s.name}</span>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>({s.type})</span>
               {s.topic && <span style={{ fontSize: 12, background: 'var(--accent-light)', padding: '2px 6px', borderRadius: 4 }}>{s.topic.name}</span>}
-              <button type="button" onClick={() => { setEditStage(s); setEditStageName(s.name); setEditStageType(s.type); setEditStageTopicId(s.topicId ?? ''); }} style={{ fontSize: 12, color: 'var(--accent)' }}>Изменить</button>
+              <button type="button" onClick={() => { setEditStage(s); setEditStageName(s.name); setEditStageType(s.type); setEditStageTopicId(s.topicId ?? ''); }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
                 onClick={() => {
@@ -333,7 +333,7 @@ export default function SettingsPage() {
                     pipeline.remove(s.id).then(loadAll).catch((e) => setError(e.message));
                   }
                 }}
-                style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--danger)' }}
+                style={{ marginLeft: 'auto', padding: '6px 12px', border: 'none', borderRadius: 'var(--radius)', background: 'var(--danger)', color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
               >
                 Удалить
               </button>
