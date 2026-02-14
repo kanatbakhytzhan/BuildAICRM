@@ -316,15 +316,13 @@ export default function LeadDetailPage() {
             </div>
             <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.phone}</p>
           </div>
-          {lead.channel && (
-            <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ color: 'var(--accent)', fontSize: 18 }}>💬</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Канал</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.channel.name}</p>
+          <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ color: 'var(--accent)', fontSize: 18 }}>💬</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Номер (канал)</span>
             </div>
-          )}
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.channel ? `${lead.channel.name}${lead.channel.externalId && lead.channel.externalId !== 'default' ? ` · ${lead.channel.externalId}` : ''}` : 'Не указан'}</p>
+          </div>
           {lead.topic && (
             <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -479,6 +477,7 @@ export default function LeadDetailPage() {
               <div>
                 <h1 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>{lead.name || lead.phone}</h1>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{lastSeenText}</p>
+                {lead.channel && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Сообщения на: {lead.channel.name}</p>}
               </div>
             </div>
             <a
