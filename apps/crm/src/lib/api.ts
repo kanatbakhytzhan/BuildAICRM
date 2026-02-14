@@ -64,10 +64,10 @@ export type Lead = {
 export type Message = { id: string; source: string; direction: string; body: string | null; mediaUrl?: string | null; createdAt: string };
 
 export const auth = {
-  login: (tenantId: string, email: string, password: string) =>
+  login: (email: string, password: string) =>
     api<{ access_token: string; user: User }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ tenantId, email, password }),
+      body: JSON.stringify({ email, password }),
     }),
 };
 

@@ -32,6 +32,13 @@ export class AuthService {
     return this.signToken(user);
   }
 
+  /** Вход только по email и паролю (без выбора организации) */
+  async loginByEmail(email: string, password: string) {
+    const user = await this.usersService.findByEmailAndPassword(email, password);
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    return this.signToken(user);
+  }
+
   signToken(user: { id: string; email: string; tenantId: string; role: string }) {
     const payload: JwtPayload = {
       sub: user.id,

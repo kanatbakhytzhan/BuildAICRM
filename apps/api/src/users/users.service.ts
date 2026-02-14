@@ -13,6 +13,18 @@ export class UsersService {
     });
   }
 
+  /** Найти пользователя по email (любая организация) и проверить пароль */
+  async findByEmailAndPassword(email: string, password: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { email: email.toLowerCase() },
+    });
+    if (!user) return null;
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return null;
+    const { passwordHash: _, ...result } = user;
+    return result;
+  }
+
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
