@@ -306,7 +306,10 @@ export class WebhooksController {
     const isWelcome = query.welcome === true || query.welcome === '1' || body.welcome === true || body.welcome === '1';
     if (isWelcome) {
       const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
-      if (settings?.aiEnabled && lead.aiActive) {
+      const hasHumanReplied = await this.prisma.message.findFirst({
+        where: { leadId: lead.id, source: MessageSource.human, direction: MessageDirection.out },
+      });
+      if (settings?.aiEnabled && lead.aiActive && !hasHumanReplied) {
         const result = await this.ai.handleFakeIncoming({
           tenantId,
           leadId: lead.id,
@@ -323,10 +326,14 @@ export class WebhooksController {
     }
 
     // Обычный режим: откладываем ответ на 1 мин (крон отправит текст + попытается медиа).
+    // Не планируем AI, если менеджер уже общался с этим клиентом (до подключения бота).
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
     });
-    if (settings?.aiEnabled && lead.aiActive) {
+    const hasHumanReplied = await this.prisma.message.findFirst({
+      where: { leadId: lead.id, source: MessageSource.human, direction: MessageDirection.out },
+    });
+    if (settings?.aiEnabled && lead.aiActive && !hasHumanReplied) {
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },
@@ -390,7 +397,10 @@ export class WebhooksController {
     });
     this.followups.cancelLeadFollowUps(lead.id);
     const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
-    if (settings?.aiEnabled && lead.aiActive) {
+    const hasHumanReplied = await this.prisma.message.findFirst({
+      where: { leadId: lead.id, source: MessageSource.human, direction: MessageDirection.out },
+    });
+    if (settings?.aiEnabled && lead.aiActive && !hasHumanReplied) {
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { aiReplyScheduledAt: new Date(Date.now() + DELAY_MS) },

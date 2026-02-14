@@ -728,6 +728,17 @@ export class AiService {
         });
         continue;
       }
+      // Не отвечать, если менеджер уже общался с этим клиентом (до подключения бота)
+      const hasHumanReplied = await this.prisma.message.findFirst({
+        where: { leadId: lead.id, source: MessageSource.human, direction: MessageDirection.out },
+      });
+      if (hasHumanReplied) {
+        await this.prisma.lead.update({
+          where: { id: lead.id },
+          data: { aiReplyScheduledAt: null },
+        });
+        continue;
+      }
       const allMessages = await this.prisma.message.findMany({
         where: { leadId: lead.id },
         orderBy: { createdAt: 'asc' },
