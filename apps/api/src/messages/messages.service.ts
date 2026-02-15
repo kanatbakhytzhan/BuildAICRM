@@ -8,6 +8,14 @@ export class MessagesService {
 
   constructor(private prisma: PrismaService) {}
 
+  async getLeadIfAccess(tenantId: string, leadId: string) {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: leadId, tenantId },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+    return lead;
+  }
+
   async listByLead(tenantId: string, leadId: string) {
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },

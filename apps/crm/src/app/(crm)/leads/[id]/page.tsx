@@ -1,28 +1,65 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { leads, messages, pipeline, ai, users, quickReplies, type Lead, type Message, type Stage } from '@/lib/api';
+import { leads, messages, pipeline, ai, users, quickReplies, getToken, type Lead, type Message, type Stage } from '@/lib/api';
 import { IconClock, IconRobot } from '@/components/Icons';
 
-function VoiceMessagePlayer({ src, direction }: { src: string; direction: string }) {
+function VoiceMessagePlayer({ streamUrl, direction }: { streamUrl: string; direction: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  return error ? (
-    <a
-      href={src}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ fontSize: 14, color: direction === 'out' ? '#fff' : 'var(--accent)', textDecoration: 'underline' }}
-    >
-      Голосовое сообщение (открыть)
-    </a>
-  ) : (
+  const blobUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!streamUrl) return;
+    const token = getToken();
+    if (!token) {
+      setError(true);
+      return;
+    }
+    let cancelled = false;
+    fetch(streamUrl, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (!r.ok) throw new Error('Fetch failed');
+        return r.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [streamUrl]);
+  if (error) {
+    return (
+      <span style={{ fontSize: 14, color: direction === 'out' ? '#fff' : 'var(--text-muted)', opacity: 0.9 }}>
+        Голосовое сообщение
+      </span>
+    );
+  }
+  if (!blobUrl) {
+    return (
+      <span style={{ fontSize: 13, color: direction === 'out' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>
+        Загрузка…
+      </span>
+    );
+  }
+  return (
     <audio
       controls
       playsInline
       preload="metadata"
-      src={src}
+      src={blobUrl}
       style={{ maxWidth: '100%', height: 36, minWidth: 180 }}
       onError={() => setError(true)}
     />
@@ -549,7 +586,7 @@ export default function LeadDetailPage() {
                     >
                       {m.mediaUrl ? (
                         <VoiceMessagePlayer
-                          src={m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl}
+                          streamUrl={`${apiBaseUrl}/leads/${lead.id}/messages/stream-media?url=${encodeURIComponent(m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl)}`}
                           direction={m.direction}
                         />
                       ) : (
