@@ -215,7 +215,7 @@ export class MessagesService {
     const trySendMedia = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
       let query: string;
       if (type === 'image') {
-        // Порядок и явное кодирование — иногда сервер/прокси обрезает или ломает длинный query
+        // ChatFlow API: только GET; порядок и явное кодирование
         const parts = [
           `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
           `instance_id=${encodeURIComponent(instanceId)}`,
@@ -232,39 +232,23 @@ export class MessagesService {
       return { ok: r.ok, text: await r.text(), res: r };
     };
 
-    /** POST send-image (на случай если GET обрезается из-за длины URL). */
-    const trySendImagePost = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
-      const body = new URLSearchParams({
-        token: settings.chatflowApiToken!,
-        instance_id: instanceId,
-        jid,
-        caption: caption ?? '',
-        imageurl: mediaUrl.trim(),
-      });
-      const r = await fetch(`${baseUrl}/send-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      return { ok: r.ok, text: await r.text(), res: r };
-    };
-
-    const trySendMediaPost = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
-      const r = await fetch(`${baseUrl}/send-media`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: settings.chatflowApiToken,
-          instance_id: instanceId,
-          jid,
-          url: mediaUrl.trim(),
-          type: type === 'audio' ? 'ptt' : 'image',
-        }),
-      });
-      return { ok: r.ok, text: await r.text(), res: r };
-    };
-
     try {
+      // Для картинки: убедиться, что URL отдаёт контент (ChatFlow потом сам дергает этот URL)
+      if (type === 'image') {
+        try {
+          const probe = await fetch(mediaUrl.trim(), {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(10000),
+            headers: { Accept: 'image/*' },
+          });
+          if (!probe.ok) {
+            this.logger.warn(`sendMediaToLead image URL not reachable: ${probe.status} ${mediaUrl.slice(0, 60)}... tenantId=${tenantId}`);
+          }
+        } catch (e) {
+          this.logger.warn(`sendMediaToLead image URL probe failed tenantId=${tenantId} error=${(e as Error).message}`);
+        }
+      }
+
       const result = await trySendMedia();
       let parsed: { success?: boolean; message?: string } = {};
       try {
@@ -274,19 +258,21 @@ export class MessagesService {
       }
       if (parsed?.success === true) return true;
 
-      // Fallback для image: POST send-image (GET мог обрезать длинный URL)
-      if (type === 'image' && parsed?.success !== true) {
-        const imgPost = await trySendImagePost();
-        const imgParsed = (() => { try { return JSON.parse(imgPost.text) as { success?: boolean }; } catch { return {}; } })();
-        if (imgParsed?.success === true) return true;
-        this.logger.warn(`sendMediaToLead send-image POST failed tenantId=${tenantId} leadId=${leadId} response=${imgPost.text.slice(0, 200)}`);
-      }
-      // Fallback: send-media (POST) — у ChatFlow может не быть этого эндпоинта
-      if ((type === 'audio' || type === 'image') && parsed?.success !== true) {
-        const postResult = await trySendMediaPost();
-        const postParsed = (() => { try { return JSON.parse(postResult.text) as { success?: boolean }; } catch { return {}; } })();
-        if (postParsed?.success === true) return true;
-        this.logger.warn(`sendMediaToLead send-media POST failed tenantId=${tenantId} leadId=${leadId} type=${type} response=${postResult.text.slice(0, 300)}`);
+      // Повтор только для image при "Failed to fetch stream" (таймаут/задержка на стороне ChatFlow)
+      if (
+        type === 'image' &&
+        parsed?.success !== true &&
+        String(parsed?.message ?? '').includes('Failed to fetch stream')
+      ) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const retry = await trySendMedia();
+        let retryParsed: { success?: boolean } = {};
+        try {
+          retryParsed = JSON.parse(retry.text) as { success?: boolean };
+        } catch {
+          retryParsed = {};
+        }
+        if (retryParsed?.success === true) return true;
       }
 
       this.logger.warn(
