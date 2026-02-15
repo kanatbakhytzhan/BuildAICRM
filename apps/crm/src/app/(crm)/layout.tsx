@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { users } from '@/lib/api';
-import { IconClipboard, IconAlert, IconUsers, IconUser, IconChart, IconSettings } from '@/components/Icons';
+import { IconClipboard, IconAlert, IconUsers, IconUser, IconChart, IconSettings, IconClock } from '@/components/Icons';
 
 export default function CrmLayout(props: { children: React.ReactNode }) {
   const { children } = props;
@@ -148,6 +148,25 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
               }}
             >
               <IconUser style={{ flexShrink: 0, opacity: 0.9 }} /> Профиль
+            </Link>
+          )}
+          {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+            <Link
+              href="/shifts"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '0.6rem 1rem',
+                margin: '0 0.5rem',
+                borderRadius: 'var(--radius)',
+                color: pathname === '/shifts' ? 'var(--accent)' : 'var(--text)',
+                background: pathname === '/shifts' ? 'var(--accent-light)' : 'transparent',
+                fontWeight: pathname === '/shifts' ? 600 : 400,
+                textDecoration: 'none',
+              }}
+            >
+              <IconClock style={{ flexShrink: 0, opacity: 0.9 }} /> Смена
             </Link>
           )}
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (

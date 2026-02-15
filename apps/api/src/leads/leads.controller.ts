@@ -76,11 +76,13 @@ export class LeadsController {
     @Query('onlyMine') onlyMine?: string,
   ) {
     const visibleTopicIds = await this.usersService.getVisibleTopicIds(user.id);
+    // owner и rop видят ВСЕ лиды; manager — только назначенные на себя
+    const managerOnlyMine = user.role === 'manager';
     return this.leadsService.list({
       tenantId: user.tenantId,
       stageId,
       topicId,
-      onlyMine: onlyMine === 'true',
+      onlyMine: onlyMine === 'true' || managerOnlyMine,
       userId: user.id,
       visibleTopicIds,
     });

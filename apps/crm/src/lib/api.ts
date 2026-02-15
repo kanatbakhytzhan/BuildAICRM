@@ -127,6 +127,15 @@ export const config = {
     api<{ revenueGoal: number | null }>('/config', { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
+export const shifts = {
+  getToday: () => api<{ date: string; userIds: string[] }>('/shifts/today'),
+  setToday: (userIds: string[]) =>
+    api<{ date: string; userIds: string[] }>('/shifts/today', {
+      method: 'PUT',
+      body: JSON.stringify({ userIds }),
+    }),
+};
+
 export const leads = {
   list: (params?: { stageId?: string; topicId?: string; onlyMine?: boolean }) => {
     const q = new URLSearchParams();

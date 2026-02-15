@@ -19,6 +19,7 @@ import { TopicsModule } from './topics/topics.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { UploadModule } from './upload/upload.module';
 import { TenantConfigModule } from './config/config.module';
+import { ShiftsModule } from './shifts/shifts.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { TenantConfigModule } from './config/config.module';
     QuickRepliesModule,
     UploadModule,
     TenantConfigModule,
+    ShiftsModule,
     AdminModule,
     SystemModule,
     AiModule,

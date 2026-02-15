@@ -23,6 +23,7 @@ model Tenant {
   systemLogs          SystemLog[]
   channels            TenantChannel[]
   topics              TenantTopic[]
+  shiftAttendances    ShiftAttendance[]
 }
 
 model QuickReplyTemplate {
@@ -106,6 +107,7 @@ model TenantSettings {
   aiEnabled         Boolean  @default(true)
   openaiApiKey      String?  // Ключ OpenAI для GPT-ответов (по клиенту)
   openaiModel       String?  // Модель: gpt-4o-mini (по умолчанию), gpt-4o и др.
+  transcriptionLanguage String?  // Язык расшифровки голосовых: kk (казахский), ru (русский). null = авто по истории чата
   chatflowInstanceId String?
   chatflowApiToken  String?
   webhookUrl        String?
@@ -122,10 +124,28 @@ model TenantSettings {
   followUpDelay    String?  // "15" (minutes) or "1" (hour)
   followUpMessage  String?  @db.Text
   revenueGoal      Int?     // цель по выручке за период (₸), для аналитики в CRM
+  shiftStart       String?  // "09:00" — начало рабочей смены (автораспределение)
+  shiftEnd         String?  // "19:00" — конец смены
+  lastAssignedUserId String? // для round-robin
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Кто сегодня на смене (владелец отмечает утром). Одна запись на тенант на дату.
+model ShiftAttendance {
+  id        String   @id @default(cuid())
+  tenantId  String
+  date      DateTime @db.Date
+  userIds   Json     // массив id менеджеров на смене
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId])
 }
 
 model FollowUpTemplate {
