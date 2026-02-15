@@ -205,7 +205,7 @@ export class MessagesService {
     } else if (type === 'image') {
       path = 'send-image';
       params.set('imageurl', mediaUrl.trim());
-      params.set('caption', (caption ?? '').trim() || ' '); // пустой caption — пробел, иначе сервер может считать «не передан»
+      params.set('caption', (caption ?? '').trim()); // пустой caption — чтобы WhatsApp группировал фото в альбом
     } else {
       path = 'send-doc';
       params.set('docurl', mediaUrl.trim());
@@ -220,7 +220,7 @@ export class MessagesService {
           `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
           `instance_id=${encodeURIComponent(instanceId)}`,
           `jid=${encodeURIComponent(jid)}`,
-          `caption=${encodeURIComponent((caption ?? '').trim() || ' ')}`,
+          `caption=${encodeURIComponent((caption ?? '').trim())}`,
           `imageurl=${encodeURIComponent(mediaUrl.trim())}`,
         ];
         query = parts.join('&');
