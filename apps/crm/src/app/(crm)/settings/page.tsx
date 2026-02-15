@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { users, topics, pipeline, quickReplies, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { users, topics, pipeline, quickReplies, uploadFile, type Topic, type Stage, type QuickReplyTemplate } from '@/lib/api';
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
@@ -25,6 +25,12 @@ export default function SettingsPage() {
   const [editTopicWelcomeVoiceUrl, setEditTopicWelcomeVoiceUrl] = useState('');
   const [editTopicWelcomeImageUrl, setEditTopicWelcomeImageUrl] = useState('');
   const [editTopicWelcomeImageUrls, setEditTopicWelcomeImageUrls] = useState<string[]>([]);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const voiceInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const imagesInputRef = useRef<HTMLInputElement>(null);
   const [qrLabel, setQrLabel] = useState('');
   const [qrMessageText, setQrMessageText] = useState('');
   const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
@@ -128,18 +134,75 @@ export default function SettingsPage() {
             </label>
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Приветственные сообщения по теме</div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>URL должны быть доступны из интернета (https://...). ChatFlow отправляет их в WhatsApp при первом сообщении.</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>Вставьте URL или загрузите файл с ПК. ChatFlow отправляет их в WhatsApp при первом сообщении.</p>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Голосовое приветствие (URL .mp3, .ogg)</span>
-                <input type="url" placeholder="https://..." value={editTopicWelcomeVoiceUrl} onChange={(e) => setEditTopicWelcomeVoiceUrl(e.target.value)} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Голосовое приветствие (.mp3, .ogg)</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="url" placeholder="https://... или загрузите" value={editTopicWelcomeVoiceUrl} onChange={(e) => setEditTopicWelcomeVoiceUrl(e.target.value)} style={{ flex: '1 1 280px', minWidth: 0, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }} />
+                  <input ref={voiceInputRef} type="file" accept="audio/*" style={{ display: 'none' }} onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setUploadingVoice(true);
+                    try {
+                      const { url } = await uploadFile(f);
+                      setEditTopicWelcomeVoiceUrl(url);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                    } finally {
+                      setUploadingVoice(false);
+                      e.target.value = '';
+                    }
+                  }} />
+                  <button type="button" onClick={() => voiceInputRef.current?.click()} disabled={uploadingVoice} style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: uploadingVoice ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>{uploadingVoice ? '…' : 'Загрузить с ПК'}</button>
+                </div>
               </label>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Главное фото приветствия (URL)</span>
-                <input type="url" placeholder="https://..." value={editTopicWelcomeImageUrl} onChange={(e) => setEditTopicWelcomeImageUrl(e.target.value)} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Главное фото приветствия</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="url" placeholder="https://... или загрузите" value={editTopicWelcomeImageUrl} onChange={(e) => setEditTopicWelcomeImageUrl(e.target.value)} style={{ flex: '1 1 280px', minWidth: 0, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }} />
+                  <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setUploadingImage(true);
+                    try {
+                      const { url } = await uploadFile(f);
+                      setEditTopicWelcomeImageUrl(url);
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                    } finally {
+                      setUploadingImage(false);
+                      e.target.value = '';
+                    }
+                  }} />
+                  <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage} style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: uploadingImage ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>{uploadingImage ? '…' : 'Загрузить с ПК'}</button>
+                </div>
               </label>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Доп. фото (по одному URL на строку — прайсы и т.д.)</span>
-                <textarea placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg" value={editTopicWelcomeImageUrls.join('\n')} onChange={(e) => setEditTopicWelcomeImageUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Доп. фото (прайсы и т.д.) — URL или загрузка</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea placeholder="https://... по одному URL на строку" value={editTopicWelcomeImageUrls.join('\n')} onChange={(e) => setEditTopicWelcomeImageUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', resize: 'vertical' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input ref={imagesInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files?.length) return;
+                      setUploadingImages(true);
+                      try {
+                        const urls: string[] = [];
+                        for (let i = 0; i < files.length; i++) {
+                          const { url } = await uploadFile(files[i]);
+                          urls.push(url);
+                        }
+                        setEditTopicWelcomeImageUrls((prev) => [...prev, ...urls]);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                      } finally {
+                        setUploadingImages(false);
+                        e.target.value = '';
+                      }
+                    }} />
+                    <button type="button" onClick={() => imagesInputRef.current?.click()} disabled={uploadingImages} style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: uploadingImages ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>{uploadingImages ? '…' : 'Загрузить фото с ПК'}</button>
+                  </div>
+                </div>
               </label>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
