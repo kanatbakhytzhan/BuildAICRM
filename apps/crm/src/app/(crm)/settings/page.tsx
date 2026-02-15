@@ -21,6 +21,10 @@ export default function SettingsPage() {
   const [editStageTopicId, setEditStageTopicId] = useState<string>('');
   const [editTopic, setEditTopic] = useState<Topic | null>(null);
   const [editTopicName, setEditTopicName] = useState('');
+  const [editTopicScenarioText, setEditTopicScenarioText] = useState('');
+  const [editTopicWelcomeVoiceUrl, setEditTopicWelcomeVoiceUrl] = useState('');
+  const [editTopicWelcomeImageUrl, setEditTopicWelcomeImageUrl] = useState('');
+  const [editTopicWelcomeImageUrls, setEditTopicWelcomeImageUrls] = useState<string[]>([]);
   const [qrLabel, setQrLabel] = useState('');
   const [qrMessageText, setQrMessageText] = useState('');
   const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
@@ -92,6 +96,10 @@ export default function SettingsPage() {
               <button type="button" onClick={() => {
                 setEditTopic(t);
                 setEditTopicName(t.name);
+                setEditTopicScenarioText(t.scenarioText ?? '');
+                setEditTopicWelcomeVoiceUrl(t.welcomeVoiceUrl ?? '');
+                setEditTopicWelcomeImageUrl(t.welcomeImageUrl ?? '');
+                setEditTopicWelcomeImageUrls(Array.isArray(t.welcomeImageUrls) ? t.welcomeImageUrls : []);
               }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
@@ -109,13 +117,42 @@ export default function SettingsPage() {
         </ul>
         {editTopic && (
           <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Редактировать тему: {editTopic.name}</div>
-            <input type="text" placeholder="Название" value={editTopicName} onChange={(e) => setEditTopicName(e.target.value)} style={{ width: '100%', maxWidth: 280, padding: '0.5rem 0.75rem', marginBottom: 8, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>Редактировать тему: {editTopic.name}</div>
+            <label style={{ display: 'block', marginBottom: 8 }}>
+              <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Название</span>
+              <input type="text" placeholder="Название темы" value={editTopicName} onChange={(e) => setEditTopicName(e.target.value)} style={{ width: '100%', maxWidth: 400, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+            </label>
+            <label style={{ display: 'block', marginBottom: 8 }}>
+              <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Сценарий для AI (текст приветствия)</span>
+              <textarea placeholder="Текст, который AI использует для приветствия по этой теме" value={editTopicScenarioText} onChange={(e) => setEditTopicScenarioText(e.target.value)} rows={3} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
+            </label>
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Приветственные сообщения по теме</div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px' }}>URL должны быть доступны из интернета (https://...). ChatFlow отправляет их в WhatsApp при первом сообщении.</p>
+              <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Голосовое приветствие (URL .mp3, .ogg)</span>
+                <input type="url" placeholder="https://..." value={editTopicWelcomeVoiceUrl} onChange={(e) => setEditTopicWelcomeVoiceUrl(e.target.value)} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+              </label>
+              <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Главное фото приветствия (URL)</span>
+                <input type="url" placeholder="https://..." value={editTopicWelcomeImageUrl} onChange={(e) => setEditTopicWelcomeImageUrl(e.target.value)} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block' }} />
+              </label>
+              <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Доп. фото (по одному URL на строку — прайсы и т.д.)</span>
+                <textarea placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg" value={editTopicWelcomeImageUrls.join('\n')} onChange={(e) => setEditTopicWelcomeImageUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'block', resize: 'vertical' }} />
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button type="button" onClick={() => setEditTopic(null)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>Отмена</button>
               <button type="button" onClick={() => {
                 setSaving(true);
-                topics.update(editTopic.id, { name: editTopicName }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
+                topics.update(editTopic.id, {
+                  name: editTopicName,
+                  scenarioText: editTopicScenarioText.trim() || null,
+                  welcomeVoiceUrl: editTopicWelcomeVoiceUrl.trim() || null,
+                  welcomeImageUrl: editTopicWelcomeImageUrl.trim() || null,
+                  welcomeImageUrls: editTopicWelcomeImageUrls.length > 0 ? editTopicWelcomeImageUrls : null,
+                }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
               }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
             </div>
           </div>
