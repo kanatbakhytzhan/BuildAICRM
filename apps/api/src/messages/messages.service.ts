@@ -205,26 +205,55 @@ export class MessagesService {
     } else if (type === 'image') {
       path = 'send-image';
       params.set('imageurl', mediaUrl.trim());
-      if (caption) params.set('caption', caption);
+      params.set('caption', caption ?? ''); // ChatFlow требует caption
     } else {
       path = 'send-doc';
       params.set('docurl', mediaUrl.trim());
-      if (caption) params.set('caption', caption);
+      params.set('caption', caption ?? '');
     }
 
-    const url = `${baseUrl}/${path}?${params.toString()}`;
+    const trySendMedia = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
+      const url = `${baseUrl}/${path}?${params.toString()}`;
+      const r = await fetch(url);
+      return { ok: r.ok, text: await r.text(), res: r };
+    };
+
+    const trySendMediaPost = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
+      const r = await fetch(`${baseUrl}/send-media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: settings.chatflowApiToken,
+          instance_id: instanceId,
+          jid,
+          url: mediaUrl.trim(),
+          type: type === 'audio' ? 'ptt' : 'image',
+        }),
+      });
+      return { ok: r.ok, text: await r.text(), res: r };
+    };
+
     try {
-      const res = await fetch(url);
-      const text = await res.text();
-      let parsed: { success?: boolean } = {};
+      const result = await trySendMedia();
+      let parsed: { success?: boolean; message?: string } = {};
       try {
-        parsed = JSON.parse(text) as { success?: boolean };
+        parsed = JSON.parse(result.text) as { success?: boolean; message?: string };
       } catch {
-        this.logger.warn(`sendMediaToLead FAIL: not JSON tenantId=${tenantId} leadId=${leadId} type=${type} response=${text.slice(0, 200)}`);
-        return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
+        parsed = {};
       }
       if (parsed?.success === true) return true;
-      this.logger.warn(`sendMediaToLead FAIL: ChatFlow ${path} tenantId=${tenantId} leadId=${leadId} response=${text.slice(0, 300)}`);
+
+      // Fallback: попробовать send-media (POST) — ChatFlow может поддерживать только его
+      if ((type === 'audio' || type === 'image') && parsed?.success !== true) {
+        const postResult = await trySendMediaPost();
+        const postParsed = (() => { try { return JSON.parse(postResult.text) as { success?: boolean }; } catch { return {}; } })();
+        if (postParsed?.success === true) return true;
+        this.logger.warn(`sendMediaToLead send-media POST failed tenantId=${tenantId} leadId=${leadId} type=${type} response=${postResult.text.slice(0, 300)}`);
+      }
+
+      this.logger.warn(
+        `sendMediaToLead FAIL: ChatFlow ${path} status=${result.res.status} success=${parsed?.success} message=${parsed?.message ?? 'n/a'} tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl.slice(0, 80)}... response=${result.text.slice(0, 400)}`,
+      );
       return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
     } catch (err) {
       this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} type=${type} error=${(err as Error).message}`);

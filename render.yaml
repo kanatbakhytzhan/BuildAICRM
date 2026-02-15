@@ -10,3 +10,9 @@ services:
       - key: NODE_VERSION
         value: "22"
     # DATABASE_URL и JWT_SECRET задай в Environment Variables в Dashboard
+    # Persistent Disk: чтобы uploads (фото, голосовые) не пропадали после перезапуска.
+    # Без диска ссылки /uploads/xxx дают 404. Подробнее: docs/RENDER-UPLOADS-404.md
+    disk:
+      name: uploads
+      mountPath: /app/uploads
+      sizeGB: 1

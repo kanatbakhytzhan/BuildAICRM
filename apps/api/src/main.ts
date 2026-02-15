@@ -6,9 +6,12 @@ import * as fs from 'fs';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const express = require('express');
 
+const BODY_LIMIT = '10mb';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.use(express.urlencoded({ extended: true }));
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(express.json({ limit: BODY_LIMIT }));
+  app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({ origin: true, credentials: true });
   const uploadsDir = path.join(process.cwd(), 'uploads');
