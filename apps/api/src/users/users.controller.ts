@@ -27,6 +27,15 @@ class CreateUserDto {
   visibleTopicIds?: string[];
 }
 
+class ChangePasswordDto {
+  @IsString()
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(6, { message: 'New password must be at least 6 characters' })
+  newPassword: string;
+}
+
 class UpdateVisibleTopicsDto {
   @IsArray()
   @IsString({ each: true })
@@ -57,6 +66,11 @@ export class UsersController {
       throw new ForbiddenException();
     }
     return this.usersService.create(user.tenantId, dto);
+  }
+
+  @Patch('me/password')
+  async changePassword(@CurrentUser('id') userId: string, @Body() dto: ChangePasswordDto) {
+    await this.usersService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }
 
   @Patch(':id/visible-topics')

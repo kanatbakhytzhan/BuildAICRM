@@ -113,7 +113,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           >
             <IconAlert style={{ flexShrink: 0, opacity: 0.9 }} /> Приоритеты
           </Link>
-          {(currentUser?.role === 'owner' || currentUser?.role === 'rop') ? (
+          {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
             <Link
               href="/users"
               style={{
@@ -131,10 +131,10 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
             >
               <IconUsers style={{ flexShrink: 0, opacity: 0.9 }} /> Пользователи
             </Link>
-          ) : (
-            <Link
-              href="/profile"
-              style={{
+          )}
+          <Link
+            href="/profile"
+            style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
@@ -149,7 +149,6 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
             >
               <IconUser style={{ flexShrink: 0, opacity: 0.9 }} /> Профиль
             </Link>
-          )}
           {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
             <Link
               href="/shifts"

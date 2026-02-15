@@ -22,6 +22,12 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [topicsList, setTopicsList] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     users.me().then((u) => setUser(u)).catch(() => setUser(null)).finally(() => setLoading(false));
@@ -44,6 +50,32 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    if (newPassword.length < 6) {
+      setPasswordError('Новый пароль не менее 6 символов');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Пароли не совпадают');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await users.changePassword(currentPassword, newPassword);
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Ошибка при смене пароля');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const visibleTopicsLabel =
     user.role === 'manager'
@@ -124,6 +156,89 @@ export default function ProfilePage() {
             </div>
           )}
         </dl>
+        <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Сменить пароль</h3>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Текущий пароль</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                fontSize: 14,
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Новый пароль</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                fontSize: 14,
+              }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Минимум 6 символов</span>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Повторите новый пароль</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete="new-password"
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                fontSize: 14,
+              }}
+            />
+          </div>
+          {passwordError && (
+            <div style={{ color: 'var(--danger)', fontSize: 13 }}>{passwordError}</div>
+          )}
+          {passwordSuccess && (
+            <div style={{ color: 'var(--accent)', fontSize: 13 }}>Пароль успешно изменён</div>
+          )}
+          <button
+            type="submit"
+            disabled={passwordSaving}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: 'var(--radius)',
+              border: 'none',
+              background: 'var(--accent)',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: passwordSaving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {passwordSaving ? 'Сохранение...' : 'Сохранить пароль'}
+          </button>
+        </form>
       </div>
     </div>
   );

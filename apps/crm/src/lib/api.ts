@@ -77,6 +77,11 @@ export const tenants = {
 
 export const users = {
   me: () => api<User>('/users/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api<void>('/users/me/password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
   list: () => api<User[]>('/users'),
   create: (data: { email: string; password: string; name?: string; role: string; visibleTopicIds?: string[] }) =>
     api<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
