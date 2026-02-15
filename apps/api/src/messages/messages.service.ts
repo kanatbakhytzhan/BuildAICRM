@@ -205,7 +205,7 @@ export class MessagesService {
     } else if (type === 'image') {
       path = 'send-image';
       params.set('imageurl', mediaUrl.trim());
-      params.set('caption', caption ?? ''); // ChatFlow требует caption
+      params.set('caption', (caption ?? '').trim() || ' '); // пустой caption — пробел, иначе сервер может считать «не передан»
     } else {
       path = 'send-doc';
       params.set('docurl', mediaUrl.trim());
@@ -213,7 +213,21 @@ export class MessagesService {
     }
 
     const trySendMedia = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
-      const url = `${baseUrl}/${path}?${params.toString()}`;
+      let query: string;
+      if (type === 'image') {
+        // Порядок и явное кодирование — иногда сервер/прокси обрезает или ломает длинный query
+        const parts = [
+          `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
+          `instance_id=${encodeURIComponent(instanceId)}`,
+          `jid=${encodeURIComponent(jid)}`,
+          `caption=${encodeURIComponent((caption ?? '').trim() || ' ')}`,
+          `imageurl=${encodeURIComponent(mediaUrl.trim())}`,
+        ];
+        query = parts.join('&');
+      } else {
+        query = params.toString();
+      }
+      const url = `${baseUrl}/${path}?${query}`;
       const r = await fetch(url);
       return { ok: r.ok, text: await r.text(), res: r };
     };

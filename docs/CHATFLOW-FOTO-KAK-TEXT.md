@@ -51,6 +51,14 @@
 
 Подробнее: [CHATFLOW-MEDIA-NODES.md](CHATFLOW-MEDIA-NODES.md).
 
+## Почему голосовые уходят, а фото — нет
+
+- **send-audio** (GET) у ChatFlow работает — голос отправляется.
+- **send-image** (GET) возвращает `success: false`, сообщение «Parameter [token, instance_id, caption, jid, imageurl] are required!» — при этом параметры в запросе есть. Частая причина: **обрезка длинного URL** (прокси/лимит длины query), из‑за чего сервер не видит часть параметров.
+- POST на `/send-image` и `/send-media` у ChatFlow **нет** (Cannot POST).
+
+**Что сделано в коде:** для send-image явно кодируем параметры и отправляем непустой caption (пробел, если подпись пустая). Если ошибка остаётся — скорее всего, ограничение на стороне ChatFlow (длина GET или баг). Напиши в поддержку ChatFlow: «send-audio по GET работает, send-image по GET возвращает "parameters required" при переданных параметрах; есть ли лимит длины URL или нужен POST для отправки изображений?»
+
 ## Внешние URL
 
 Если используется внешний URL (например, Imgur), он должен быть:
