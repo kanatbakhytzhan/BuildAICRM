@@ -237,7 +237,7 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
           <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--text)' }}>SKAI CRM</span>
         </Link>
         <span className="crm-mobile-header-title" style={{ marginLeft: 'auto', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
-          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/profile' ? 'Профиль' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : 'SKAI CRM'}
+          {pathname.startsWith('/leads') ? 'Заявки' : pathname === '/priorities' ? 'Приоритеты' : pathname === '/users' ? 'Пользователи' : pathname === '/profile' ? 'Профиль' : pathname === '/shifts' ? 'Смена' : pathname === '/analytics' ? 'Аналитика' : pathname === '/settings' ? 'Настройки' : 'SKAI CRM'}
         </span>
       </header>
       <main className="crm-main">
@@ -269,6 +269,14 @@ export default function CrmLayout(props: { children: React.ReactNode }) {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </span>
             <span>Профиль</span>
+          </Link>
+        )}
+        {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
+          <Link href="/shifts" style={navLink('/shifts', 'Смена', pathname === '/shifts')}>
+            <span className="crm-nav-icon" style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconClock style={{ width: 22, height: 22 }} />
+            </span>
+            <span>Смена</span>
           </Link>
         )}
         {(currentUser?.role === 'owner' || currentUser?.role === 'rop') && (
