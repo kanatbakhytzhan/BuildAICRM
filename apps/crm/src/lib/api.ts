@@ -87,6 +87,13 @@ export const users = {
     api<User>('/users', { method: 'POST', body: JSON.stringify(data) }),
   updateVisibleTopics: (userId: string, visibleTopicIds: string[]) =>
     api<User>(`/users/${userId}/visible-topics`, { method: 'PATCH', body: JSON.stringify({ visibleTopicIds }) }),
+  remove: (userId: string) =>
+    api<void>(`/users/${userId}`, { method: 'DELETE' }),
+  resetPassword: (userId: string, newPassword: string) =>
+    api<void>(`/users/${userId}/reset-password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
+    }),
 };
 
 export const pipeline = {

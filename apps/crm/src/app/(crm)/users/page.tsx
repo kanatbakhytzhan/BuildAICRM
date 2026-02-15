@@ -55,6 +55,12 @@ export default function UsersPage() {
   const [editTopicsIds, setEditTopicsIds] = useState<string[]>([]);
   const [editTopicsLoading, setEditTopicsLoading] = useState(false);
   const [editTopicsError, setEditTopicsError] = useState('');
+  const [resetPwdUser, setResetPwdUser] = useState<User | null>(null);
+  const [resetPwdValue, setResetPwdValue] = useState('');
+  const [resetPwdLoading, setResetPwdLoading] = useState(false);
+  const [resetPwdError, setResetPwdError] = useState('');
+  const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const canInvite = currentUser?.role === 'owner' || currentUser?.role === 'rop';
 
@@ -224,7 +230,7 @@ export default function UsersPage() {
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Лиды</th>
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Темы</th>
                   <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Статус</th>
-                  <th style={{ width: 40 }} />
+                  {canInvite && <th style={{ width: 120, padding: '0.75rem 1rem', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Действия</th>}
                 </tr>
               </thead>
               <tbody>
@@ -299,7 +305,30 @@ export default function UsersPage() {
                         Активен
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }} />
+                    {canInvite && (
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          {u.role !== 'owner' && (
+                            <button
+                              type="button"
+                              onClick={() => { setResetPwdUser(u); setResetPwdValue(''); setResetPwdError(''); }}
+                              style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              Сбросить пароль
+                            </button>
+                          )}
+                          {u.role === 'manager' && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteUser(u)}
+                              style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -580,6 +609,142 @@ export default function UsersPage() {
                 style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}
               >
                 {editTopicsLoading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetPwdUser && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => !resetPwdLoading && setResetPwdUser(null)}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.5rem',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem' }}>Сбросить пароль</h2>
+            <p style={{ margin: '0 0 1rem', fontSize: 14, color: 'var(--text-muted)' }}>
+              Новый пароль для {resetPwdUser.name || resetPwdUser.email}
+            </p>
+            <label style={{ display: 'block', marginBottom: '1rem' }}>
+              <span style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--text-muted)' }}>Новый пароль (не менее 6 символов)</span>
+              <input
+                type="password"
+                value={resetPwdValue}
+                onChange={(e) => setResetPwdValue(e.target.value)}
+                minLength={6}
+                style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+              />
+            </label>
+            {resetPwdError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: '0.75rem' }}>{resetPwdError}</p>}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => !resetPwdLoading && setResetPwdUser(null)}
+                style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={resetPwdLoading || resetPwdValue.length < 6}
+                onClick={async () => {
+                  setResetPwdError('');
+                  setResetPwdLoading(true);
+                  try {
+                    await users.resetPassword(resetPwdUser.id, resetPwdValue);
+                    setResetPwdUser(null);
+                    setResetPwdValue('');
+                  } catch (err) {
+                    setResetPwdError(err instanceof Error ? err.message : 'Ошибка');
+                  } finally {
+                    setResetPwdLoading(false);
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}
+              >
+                {resetPwdLoading ? 'Сохранение...' : 'Сбросить пароль'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteUser && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => !deleteLoading && setDeleteUser(null)}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.5rem',
+              maxWidth: 400,
+              width: '100%',
+              boxShadow: 'var(--shadow-card)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem' }}>Удалить менеджера</h2>
+            <p style={{ margin: '0 0 1rem', fontSize: 14, color: 'var(--text-muted)' }}>
+              Вы уверены, что хотите удалить {deleteUser.name || deleteUser.email}? Лиды, назначенные этому менеджеру, останутся без владельца.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => !deleteLoading && setDeleteUser(null)}
+                style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)' }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading}
+                onClick={async () => {
+                  setDeleteLoading(true);
+                  try {
+                    await users.remove(deleteUser.id);
+                    const data = await users.list();
+                    setList(data);
+                    setDeleteUser(null);
+                  } catch (err) {
+                    console.error(err);
+                    setDeleteUser(null);
+                  } finally {
+                    setDeleteLoading(false);
+                  }
+                }}
+                style={{ padding: '0.5rem 1rem', background: 'var(--danger)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}
+              >
+                {deleteLoading ? 'Удаление...' : 'Удалить'}
               </button>
             </div>
           </div>

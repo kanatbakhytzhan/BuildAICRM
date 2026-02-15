@@ -115,6 +115,24 @@ export class UsersService {
     });
   }
 
+  async remove(userId: string, tenantId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === 'owner') throw new BadRequestException('Нельзя удалить владельца');
+    await this.prisma.userVisibleTopic.deleteMany({ where: { userId } });
+    await this.prisma.user.delete({ where: { id: userId } });
+  }
+
+  async resetPassword(userId: string, tenantId: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+    if (!user) throw new NotFoundException('User not found');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
   async getVisibleTopicIds(userId: string): Promise<string[] | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

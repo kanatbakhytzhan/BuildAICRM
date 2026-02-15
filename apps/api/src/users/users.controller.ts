@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, ForbiddenException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/tenant.decorator';
@@ -42,6 +42,12 @@ class UpdateVisibleTopicsDto {
   visibleTopicIds: string[];
 }
 
+class ResetPasswordDto {
+  @IsString()
+  @MinLength(6, { message: 'Password must be at least 6 characters' })
+  newPassword: string;
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -71,6 +77,26 @@ export class UsersController {
   @Patch('me/password')
   async changePassword(@CurrentUser('id') userId: string, @Body() dto: ChangePasswordDto) {
     await this.usersService.changePassword(userId, dto.currentPassword, dto.newPassword);
+  }
+
+  @Delete(':id')
+  async remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    if (user.role !== 'owner' && user.role !== 'rop') {
+      throw new ForbiddenException();
+    }
+    await this.usersService.remove(id, user.tenantId);
+  }
+
+  @Patch(':id/reset-password')
+  async resetPassword(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: ResetPasswordDto,
+  ) {
+    if (user.role !== 'owner' && user.role !== 'rop') {
+      throw new ForbiddenException();
+    }
+    await this.usersService.resetPassword(id, user.tenantId, dto.newPassword);
   }
 
   @Patch(':id/visible-topics')
