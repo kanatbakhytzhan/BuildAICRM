@@ -16,7 +16,7 @@ export class ShiftsService {
     return { date: d.toISOString().slice(0, 10), userIds };
   }
 
-  /** Сохранить смену на дату. Только owner/rop. */
+  /** Сохранить смену на дату. Только owner/rop. После сохранения распределяет накопившиеся лиды. */
   async setForDate(tenantId: string, date: Date, userIds: string[]) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -26,7 +26,33 @@ export class ShiftsService {
       create: { tenantId, date: d, userIds: valid },
       update: { userIds: valid },
     });
-    return this.getForDate(tenantId, d);
+    const distributed = valid.length > 0 ? await this.distributeUnassignedLeads(tenantId, valid) : 0;
+    const result = await this.getForDate(tenantId, d);
+    return { ...result, distributedCount: distributed };
+  }
+
+  /** Распределить лиды без назначения между менеджерами (round-robin). Возвращает количество. */
+  async distributeUnassignedLeads(tenantId: string, userIds: string[]): Promise<number> {
+    const unassigned = await this.prisma.lead.findMany({
+      where: { tenantId, assignedUserId: null },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (unassigned.length === 0 || userIds.length === 0) return 0;
+    const sorted = [...new Set(userIds)].sort();
+    for (let i = 0; i < unassigned.length; i++) {
+      const assigneeId = sorted[i % sorted.length];
+      await this.prisma.lead.update({
+        where: { id: unassigned[i].id },
+        data: { assignedUserId: assigneeId },
+      });
+    }
+    await this.prisma.tenantSettings.upsert({
+      where: { tenantId },
+      create: { tenantId, lastAssignedUserId: sorted[(unassigned.length - 1) % sorted.length] },
+      update: { lastAssignedUserId: sorted[(unassigned.length - 1) % sorted.length] },
+    });
+    return unassigned.length;
   }
 
   /** Текущее время в разрешённом диапазоне смены? (по умолчанию 9:00–19:00) */

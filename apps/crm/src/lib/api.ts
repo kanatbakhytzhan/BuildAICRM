@@ -130,7 +130,7 @@ export const config = {
 export const shifts = {
   getToday: () => api<{ date: string; userIds: string[] }>('/shifts/today'),
   setToday: (userIds: string[]) =>
-    api<{ date: string; userIds: string[] }>('/shifts/today', {
+    api<{ date: string; userIds: string[]; distributedCount?: number }>('/shifts/today', {
       method: 'PUT',
       body: JSON.stringify({ userIds }),
     }),

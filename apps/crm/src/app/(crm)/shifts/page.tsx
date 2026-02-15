@@ -10,9 +10,11 @@ export default function ShiftsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastResult, setLastResult] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLastResult(null);
     Promise.all([users.list(), shifts.getToday()])
       .then(([u, a]) => {
         setUsersList(u);
@@ -34,17 +36,28 @@ export default function ShiftsPage() {
       else next.add(id);
       return next;
     });
+    setLastResult(null);
   };
 
   const save = () => {
     setSaving(true);
+    setLastResult(null);
     shifts
       .setToday(Array.from(selectedIds))
       .then((a) => {
         setAttendance(a);
         setSelectedIds(new Set(a.userIds));
+        const n = (a as { distributedCount?: number }).distributedCount ?? 0;
+        const m = a.userIds.length;
+        if (n > 0 && m > 0) {
+          setLastResult(`Готово! Распределено ${n} лидов между ${m} менеджерами`);
+        } else if (m > 0) {
+          setLastResult(`Готово! Смена сохранена. Новые лиды будут распределяться между ${m} менеджерами`);
+        } else {
+          setLastResult('Смена сохранена');
+        }
       })
-      .catch(console.error)
+      .catch((e) => setLastResult(`Ошибка: ${e instanceof Error ? e.message : 'Не удалось сохранить'}`))
       .finally(() => setSaving(false));
   };
 
@@ -61,10 +74,20 @@ export default function ShiftsPage() {
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '1.5rem' }}>
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 20, fontWeight: 700 }}>
-        <IconClock style={{ opacity: 0.9 }} /> Смена на сегодня
+        <IconClock style={{ opacity: 0.9 }} /> Кто сегодня на работе?
       </h1>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: '1.5rem' }}>
-        Отметьте менеджеров, которые сегодня на работе. Лиды будут распределяться между ними в рабочее время (9:00–19:00). Владелец всегда видит все лиды.
+
+      <div style={{ background: 'var(--accent-light)', color: 'var(--accent)', padding: '1rem 1.25rem', borderRadius: 'var(--radius)', marginBottom: '1.5rem', fontSize: 15, lineHeight: 1.5 }}>
+        <strong>Как это работает:</strong>
+        <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+          <li>Отметьте галочками менеджеров, которые сегодня на работе</li>
+          <li>Нажмите «Сохранить»</li>
+          <li>Система сама распределит все накопившиеся лиды и новые заявки между ними</li>
+        </ol>
+      </div>
+
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: '1.25rem' }}>
+        Распределение идёт с 9:00 до 19:00. Вы (владелец) всегда видите все лиды.
       </p>
 
       {managers.length === 0 ? (
@@ -122,6 +145,12 @@ export default function ShiftsPage() {
       >
         <IconCheck width={18} height={18} /> {saving ? 'Сохранение...' : 'Сохранить'}
       </button>
+
+      {lastResult && (
+        <p style={{ marginTop: '1rem', padding: '0.75rem', background: lastResult.startsWith('Ошибка') ? 'var(--warning-bg)' : 'var(--success-bg)', color: lastResult.startsWith('Ошибка') ? 'var(--warning)' : 'var(--success)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 500 }}>
+          {lastResult}
+        </p>
+      )}
     </div>
   );
 }

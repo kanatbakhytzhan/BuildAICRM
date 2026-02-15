@@ -81,6 +81,47 @@
 
 ---
 
+## Обход через узел «HTTP Request» и переменные
+
+Можно собрать цепочку **только из узлов HTTP Request** и явно прокинуть переменные из ответа нашего API.
+
+### Шаг 1: Вызвать наш API
+
+- Узел **HTTP Request**: Method **POST**, URL `https://buildcrm-api.onrender.com/webhooks/chatflow/seed-tenant-1`, Content Type `application/json`.
+- **Request Body (JSON):**
+  ```json
+  { "message": "{{OTHER_MSG}}", "from": "{{НомерОтправителя}}", "welcome": 1 }
+  ```
+  Подставь переменную номера из триггера (например `{{metadata.remoteJid}}`).
+
+В выходе узла будет ответ с полями `reply`, `welcomeVoiceUrl`, `welcomeImageUrls`. В ChatFlow они могут называться, например: `{{HTTP Request.body.reply}}`, `{{HTTP Request.body.welcomeVoiceUrl}}`, `{{HTTP Request.body.welcomeImageUrls.0}}`.
+
+### Шаг 2: Отправить текст (send-text)
+
+- Ещё один **HTTP Request**: Method **GET**, URL `https://app.chatflow.kz/api/v1/send-text`.
+- **Query Parameters:** `token`, `instance_id`, `jid` (номер в формате `79...@s.whatsapp.net`), `msg` = **`{{HTTP Request.body.reply}}`** (или как у тебя называется ответ шага 1).
+
+Текст уйдёт в WhatsApp.
+
+### Шаг 3: Попробовать отправить голос/фото (send-media)
+
+- Ещё один **HTTP Request**: Method **POST**, URL `https://app.chatflow.kz/api/v1/send-media`, Content Type `application/json`.
+- **Request Body:**
+  ```json
+  { "token": "ТВОЙ_TOKEN", "instance_id": "ТВОЙ_INSTANCE_ID", "jid": "79...@s.whatsapp.net", "url": "{{HTTP Request.body.welcomeVoiceUrl}}", "type": "ptt" }
+  ```
+  Для фото — тот же URL, в body `"type": "image"` и `"url": "{{HTTP Request.body.welcomeImageUrls.0}}"`.
+
+Если в ответе приходит HTML — send-media у ChatFlow не работает, обход не сработает. Если приходит JSON с `success: true` — медиа уйдёт в чат.
+
+| Что отправить | Переменная из шага 1 | Куда |
+|---------------|----------------------|------|
+| Текст | `reply` | send-text, параметр `msg` |
+| Голос | `welcomeVoiceUrl` | send-media, `url`, type `ptt` |
+| Фото | `welcomeImageUrls.0` | send-media, `url`, type `image` |
+
+---
+
 ## Если в узлах нет поля «URL» / «Ссылка»
 
 Тогда в текущем виде конструктор, скорее всего, не умеет отправлять медиа по ссылке из вебхука. Имеет смысл:
