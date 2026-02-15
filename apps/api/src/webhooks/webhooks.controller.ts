@@ -453,6 +453,10 @@ export class WebhooksController {
           text: bodyToSave,
           skipSaveIncoming: true,
         });
+        const topicId = result.lead?.topicId ?? lead.topicId ?? null;
+        if (topicId) {
+          await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
+        }
         return {
           received: true,
           tenantId,

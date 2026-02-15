@@ -768,6 +768,10 @@ export class AiService {
         if (result.reply) {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
         }
+        const topicId = result.lead?.topicId ?? lead.topicId ?? null;
+        if (topicId) {
+          await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
+        }
       } catch (err) {
         await this.logs.log({
           tenantId: lead.tenantId,

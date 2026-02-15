@@ -232,6 +232,33 @@ export class MessagesService {
     }
   }
 
+  /** Отправить приветственные медиа темы лиду (голосовое, фото). Вызывать после текстового ответа AI. */
+  async sendWelcomeMediaForTopic(tenantId: string, leadId: string, topicId: string | null): Promise<void> {
+    if (!topicId) return;
+    const topic = await this.prisma.tenantTopic.findFirst({
+      where: { id: topicId, tenantId },
+      select: { welcomeVoiceUrl: true, welcomeImageUrl: true, welcomeImageUrls: true },
+    });
+    if (!topic) return;
+
+    const toSend: { url: string; type: 'audio' | 'image' }[] = [];
+    if (topic.welcomeVoiceUrl?.trim() && !topic.welcomeVoiceUrl.includes('localhost')) {
+      toSend.push({ url: topic.welcomeVoiceUrl.trim(), type: 'audio' });
+    }
+    if (topic.welcomeImageUrl?.trim() && !topic.welcomeImageUrl.includes('localhost')) {
+      toSend.push({ url: topic.welcomeImageUrl.trim(), type: 'image' });
+    }
+    const extras = Array.isArray(topic.welcomeImageUrls) ? topic.welcomeImageUrls : [];
+    for (const u of extras) {
+      const url = typeof u === 'string' ? u : String(u ?? '').trim();
+      if (url && !url.includes('localhost')) toSend.push({ url, type: 'image' });
+    }
+
+    for (const { url, type } of toSend) {
+      await this.sendMediaToLead(tenantId, leadId, url, type);
+    }
+  }
+
   /** Fallback: отправить ссылку на медиа текстом (ChatFlow не имеет send-media). */
   private sendMediaLinkAsText(
     tenantId: string,
