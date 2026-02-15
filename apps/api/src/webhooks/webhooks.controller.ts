@@ -16,6 +16,28 @@ function normalizePhone(v: unknown): string {
 /** Результат парсинга: текст, телефон, опционально имя отправителя, опционально идентификатор канала (instance_id). */
 type ParsedIncoming = { text: string; phone: string; name?: string; channelExternalId?: string };
 
+/** Рекурсивно ищет строку текста в объекте (форматы Baileys, обёртки конструкторов). Глубина до 5. */
+function extractTextRecursive(obj: unknown, depth = 0): string | undefined {
+  if (depth > 5 || obj == null) return undefined;
+  if (typeof obj === 'string' && obj.trim().length > 0) return obj;
+  if (typeof obj !== 'object') return undefined;
+  const o = obj as Record<string, unknown>;
+  for (const key of ['text', 'body', 'message', 'content', 'conversation', 'caption', 'messageText']) {
+    const v = o[key];
+    if (typeof v === 'string' && v.trim()) return v;
+    if (v && typeof v === 'object') {
+      const inner = (v as Record<string, unknown>).body ?? (v as Record<string, unknown>).text ?? v;
+      const found = extractTextRecursive(inner, depth + 1);
+      if (found) return found;
+    }
+  }
+  for (const v of Object.values(o)) {
+    const found = extractTextRecursive(v, depth + 1);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 /** Достаёт из тела вебхука ChatFlow/WhatsApp текст сообщения и номер отправителя. */
 function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null {
   let text: string | undefined;
@@ -51,6 +73,11 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (text === undefined && typeof msg.text === 'string') text = msg.text;
     if (text === undefined && typeof msg.caption === 'string') text = msg.caption;
     if (text === undefined && msg.body !== undefined) text = String(msg.body);
+    if (text === undefined && typeof msg.conversation === 'string') text = msg.conversation;
+    const ext = msg.extendedTextMessage as Record<string, unknown> | undefined;
+    if (text === undefined && ext && typeof ext.text === 'string') text = ext.text;
+    const img = msg.imageMessage as Record<string, unknown> | undefined;
+    if (text === undefined && img && typeof img.caption === 'string') text = img.caption;
     if (phone === undefined && msg.from !== undefined) phone = String(msg.from);
   }
 
@@ -64,6 +91,7 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
       const first = messages[0];
       const textObj = first?.text as Record<string, unknown> | undefined;
       if (text === undefined && textObj && typeof textObj.body === 'string') text = textObj.body;
+      if (text === undefined) text = extractTextRecursive(first);
       if (phone === undefined && first?.from !== undefined) phone = String(first.from);
       const contacts = value?.contacts as Array<Record<string, unknown>> | undefined;
       if (phone === undefined && Array.isArray(contacts) && contacts.length > 0 && contacts[0]?.wa_id)
@@ -84,6 +112,10 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (text === undefined && typeof data.text === 'string') text = data.text;
     if (text === undefined && typeof data.body === 'string') text = data.body;
     if (text === undefined && typeof data.message === 'string') text = data.message;
+    const dataMsgs = data.messages as Array<Record<string, unknown>> | undefined;
+    if (text === undefined && Array.isArray(dataMsgs) && dataMsgs.length > 0) {
+      text = extractTextRecursive(dataMsgs[0]);
+    }
     if (phone === undefined && data.from !== undefined) phone = String(data.from);
     if (phone === undefined && data.phone !== undefined) phone = String(data.phone);
     if (phone === undefined && data.jid !== undefined) phone = String(data.jid);
@@ -109,7 +141,7 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
   const contact = body.contact as Record<string, unknown> | undefined;
   if (phone === undefined && contact?.phone !== undefined) phone = String(contact.phone);
 
-  // Вариант: массив messages (первое сообщение)
+  // Вариант: массив messages (первое сообщение), в т.ч. messages[0].message (вложенный объект Baileys)
   const messages = body.messages as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(messages) && messages.length > 0) {
     const first = messages[0];
@@ -117,6 +149,8 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (text === undefined && first?.body !== undefined) text = String(first.body);
     const firstText = first?.text as Record<string, unknown> | undefined;
     if (text === undefined && firstText && typeof firstText.body === 'string') text = firstText.body;
+    const firstMsg = first?.message as Record<string, unknown> | undefined;
+    if (text === undefined && firstMsg) text = extractTextRecursive(firstMsg);
     if (phone === undefined && first?.from !== undefined) phone = String(first.from);
     const ctx = first?.context as Record<string, unknown> | undefined;
     if (phone === undefined && ctx?.from !== undefined) phone = String(ctx.from);
@@ -145,6 +179,9 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     const em = entryValue.metadata as Record<string, unknown>;
     if (typeof em.instance_id === 'string' && em.instance_id.trim()) channelExternalId = (em.instance_id as string).trim();
   }
+
+  // Последняя попытка: рекурсивный поиск текста (разные обёртки ChatFlow/Baileys)
+  if (!text || !text.trim()) text = extractTextRecursive(body);
 
   const normalizedPhone = phone ? normalizePhone(phone) : '';
   if (!text || text.trim() === '' || normalizedPhone.length < 10) return null;
@@ -252,11 +289,18 @@ export class WebhooksController {
     }
     if (!parsed) {
       const bodyKeys = Object.keys(body);
+      const bodyFull = JSON.stringify(body);
+      const reason = bodyFull.length > 100 ? 'text_or_phone_empty' : 'body_empty_or_invalid';
       await this.logs.log({
         tenantId,
         category: 'whatsapp',
-        message: 'ChatFlow: не удалось извлечь text/phone из тела запроса',
-        meta: { bodyKeys, bodySample: JSON.stringify(body).slice(0, 500), queryKeys: Object.keys(query) } as Prisma.JsonValue,
+        message: 'ChatFlow: не удалось извлечь text/phone — проверьте формат payload от номера/instance',
+        meta: {
+          bodyKeys,
+          bodySample: bodyFull.slice(0, 4000),
+          queryKeys: Object.keys(query),
+          reason,
+        } as Prisma.JsonValue,
       });
       return {
         received: true,
