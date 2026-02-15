@@ -3,6 +3,7 @@ import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CloudinaryService } from './cloudinary.service';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
@@ -30,6 +31,8 @@ function getExtension(mimetype: string): string {
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
 export class UploadController {
+  constructor(private cloudinary: CloudinaryService) {}
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
@@ -51,8 +54,17 @@ export class UploadController {
       }),
     }),
   )
-  upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
+  async upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
     if (!file) throw new BadRequestException('Файл не загружен');
+    if (this.cloudinary.isEnabled()) {
+      try {
+        const buf = fs.readFileSync(file.path);
+        const cloudUrl = await this.cloudinary.uploadBuffer(buf);
+        if (cloudUrl) return { url: cloudUrl };
+      } catch {
+        // fallback to local
+      }
+    }
     let baseUrl = process.env.API_URL || process.env.PUBLIC_URL;
     if (!baseUrl) {
       const proto = req.get('x-forwarded-proto') || (req.protocol === 'https' ? 'https' : 'http');

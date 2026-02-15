@@ -259,11 +259,7 @@ export class MessagesService {
       if (parsed?.success === true) return true;
 
       // Повтор только для image при "Failed to fetch stream" (таймаут/задержка на стороне ChatFlow)
-      if (
-        type === 'image' &&
-        parsed?.success !== true &&
-        String(parsed?.message ?? '').includes('Failed to fetch stream')
-      ) {
+      if (type === 'image' && String(parsed?.message ?? '').includes('Failed to fetch stream')) {
         await new Promise((r) => setTimeout(r, 2500));
         const retry = await trySendMedia();
         let retryParsed: { success?: boolean } = {};
