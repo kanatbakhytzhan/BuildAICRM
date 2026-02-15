@@ -310,8 +310,13 @@ export class MessagesService {
       if (url && !url.includes('localhost')) toSend.push({ url, type: 'image' });
     }
 
-    for (const { url, type } of toSend) {
+    const audioItems = toSend.filter((x) => x.type === 'audio');
+    const imageItems = toSend.filter((x) => x.type === 'image');
+    for (const { url, type } of audioItems) {
       await this.sendMediaToLead(tenantId, leadId, url, type);
+    }
+    if (imageItems.length > 0) {
+      await Promise.all(imageItems.map(({ url }) => this.sendMediaToLead(tenantId, leadId, url, 'image', '')));
     }
     await this.prisma.lead.update({
       where: { id: leadId },
@@ -337,8 +342,8 @@ export class MessagesService {
       const url = typeof u === 'string' ? u : String(u ?? '').trim();
       if (url && !url.includes('localhost')) toSend.push(url);
     }
-    for (const url of toSend) {
-      await this.sendMediaToLead(tenantId, leadId, url, 'image', '');
+    if (toSend.length > 0) {
+      await Promise.all(toSend.map((url) => this.sendMediaToLead(tenantId, leadId, url, 'image', '')));
     }
   }
 
