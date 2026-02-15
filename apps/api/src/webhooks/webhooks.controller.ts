@@ -7,6 +7,7 @@ import { FollowupsSchedulerService } from '../followups/followups.scheduler.serv
 import { TranscribeService } from './transcribe.service';
 import { AiService } from '../ai/ai.service';
 import { ShiftsService } from '../shifts/shifts.service';
+import { UploadService } from '../upload/upload.service';
 
 /** Нормализует номер телефона до цифр (для поиска лида). */
 function normalizePhone(v: unknown): string {
@@ -188,9 +189,12 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
         channelExternalId = (wh.instance_id as string).trim();
     }
   }
-  const entryValue = Array.isArray(entry) && entry[0]?.changes?.[0]?.value as Record<string, unknown> | undefined;
-  if (!channelExternalId && entryValue?.metadata) {
-    const em = entryValue.metadata as Record<string, unknown>;
+  const entryArr = Array.isArray(entry) ? entry : [];
+  const entryValue = (entryArr[0] as Record<string, unknown> | undefined)?.changes as unknown[] | undefined;
+  const value = entryValue?.[0] as Record<string, unknown> | undefined;
+  const valueObj = value?.value as Record<string, unknown> | undefined;
+  if (!channelExternalId && valueObj?.metadata) {
+    const em = valueObj.metadata as Record<string, unknown>;
     if (typeof em.instance_id === 'string' && em.instance_id.trim()) channelExternalId = (em.instance_id as string).trim();
   }
 
@@ -249,6 +253,7 @@ export class WebhooksController {
     private transcribe: TranscribeService,
     private ai: AiService,
     private shifts: ShiftsService,
+    private upload: UploadService,
   ) {}
 
   /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
@@ -420,12 +425,17 @@ export class WebhooksController {
       }
     }
     const incomingMediaUrl = isVoice && mediaData && typeof mediaData.url === 'string' ? (mediaData.url as string).trim() : undefined;
-    const bodyToSave = (messageBody && String(messageBody).trim()) ? String(messageBody).trim() : (incomingMediaUrl ? '[Голосовое сообщение]' : '[Сообщение]');
+    let mediaUrlToSave: string | undefined = incomingMediaUrl;
+    if (incomingMediaUrl) {
+      const localPath = await this.upload.saveFromUrl(incomingMediaUrl);
+      if (localPath) mediaUrlToSave = localPath;
+    }
+    const bodyToSave = (messageBody && String(messageBody).trim()) ? String(messageBody).trim() : (mediaUrlToSave ? '[Голосовое сообщение]' : '[Сообщение]');
     await this.messages.createForLead(tenantId, lead.id, {
       source: MessageSource.human,
       direction: MessageDirection.in,
       body: bodyToSave,
-      mediaUrl: incomingMediaUrl,
+      mediaUrl: mediaUrlToSave,
     });
     this.followups.cancelLeadFollowUps(lead.id);
 
