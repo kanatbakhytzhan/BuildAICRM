@@ -1,10 +1,33 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { leads, messages, pipeline, ai, users, quickReplies, uploadFile, type Lead, type Message, type Stage } from '@/lib/api';
+import { leads, messages, pipeline, ai, users, quickReplies, type Lead, type Message, type Stage } from '@/lib/api';
 import { IconClock, IconRobot } from '@/components/Icons';
+
+function VoiceMessagePlayer({ src, direction }: { src: string; direction: string }) {
+  const [error, setError] = useState(false);
+  return error ? (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ fontSize: 14, color: direction === 'out' ? '#fff' : 'var(--accent)', textDecoration: 'underline' }}
+    >
+      Голосовое сообщение (открыть)
+    </a>
+  ) : (
+    <audio
+      controls
+      playsInline
+      preload="metadata"
+      src={src}
+      style={{ maxWidth: '100%', height: 36, minWidth: 180 }}
+      onError={() => setError(true)}
+    />
+  );
+}
 
 function MobileTimelineSection({ eventHistory, scoreValue }: { eventHistory: { type: string; createdAt: string; title: string; desc: string; color: string }[]; scoreValue: number }) {
   const [open, setOpen] = useState(false);
@@ -91,8 +114,6 @@ export default function LeadDetailPage() {
   const [dealAmountInput, setDealAmountInput] = useState('');
   const [savingDeal, setSavingDeal] = useState(false);
   const [quickReplyTemplates, setQuickReplyTemplates] = useState<{ id: string; label: string; messageText: string }[]>([]);
-  const [sendingVoice, setSendingVoice] = useState(false);
-  const voiceInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     users.me().then(setCurrentUser).catch(() => setCurrentUser(null));
@@ -228,24 +249,6 @@ export default function LeadDetailPage() {
       console.error(err);
     } finally {
       setSending(false);
-    }
-  };
-
-  const sendVoiceMessage = async (file: File) => {
-    if (!lead) return;
-    setSendingVoice(true);
-    try {
-      const { url } = await uploadFile(file);
-      const msg = await messages.create(lead.id, '', url);
-      setMsgs((prev) => [...prev, msg]);
-      const nowIso = new Date().toISOString();
-      setLead((prev) =>
-        prev ? { ...prev, lastMessageAt: nowIso, lastMessagePreview: '🎵 Голосовое', noResponseSince: nowIso } : prev,
-      );
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSendingVoice(false);
     }
   };
 
@@ -545,10 +548,9 @@ export default function LeadDetailPage() {
                       }}
                     >
                       {m.mediaUrl ? (
-                        <audio
-                          controls
+                        <VoiceMessagePlayer
                           src={m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl}
-                          style={{ maxWidth: '100%', height: 36, minWidth: 200 }}
+                          direction={m.direction}
                         />
                       ) : (
                         m.body
@@ -571,29 +573,6 @@ export default function LeadDetailPage() {
             ))}
           </div>
           <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            <input
-              ref={voiceInputRef}
-              type="file"
-              accept="audio/*"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  sendVoiceMessage(file);
-                  e.target.value = '';
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => voiceInputRef.current?.click()}
-              disabled={sendingVoice}
-              title="Отправить голосовое"
-              style={{ width: 48, height: 48, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: sendingVoice ? 'default' : 'pointer', opacity: sendingVoice ? 0.7 : 1, flexShrink: 0 }}
-              aria-label="Голосовое сообщение"
-            >
-              🎤
-            </button>
             <div style={{ flex: 1, minWidth: 0, background: 'var(--sidebar-bg)', borderRadius: 12, border: '1px solid transparent', display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
               <textarea
                 value={input}
