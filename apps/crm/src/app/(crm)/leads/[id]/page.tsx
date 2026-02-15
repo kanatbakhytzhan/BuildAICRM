@@ -321,7 +321,7 @@ export default function LeadDetailPage() {
               <span style={{ color: 'var(--accent)', fontSize: 18 }}>💬</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Номер (канал)</span>
             </div>
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.channel ? `${lead.channel.name}${lead.channel.externalId && lead.channel.externalId !== 'default' ? ` · ${lead.channel.externalId}` : ''}` : 'Не указан'}</p>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', paddingLeft: 26 }}>{lead.channel ? lead.channel.name : 'Не указан'}</p>
           </div>
           {lead.topic && (
             <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 12, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
