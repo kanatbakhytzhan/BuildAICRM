@@ -782,8 +782,9 @@ export class AiService {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
           const topicId = result.lead?.topicId ?? lead.topicId ?? null;
           if (topicId) {
+            const hadWelcome = !!lead.welcomeMediaSentAt;
             await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
-            if (this.messages.isCatalogRequest(batchText)) {
+            if (this.messages.isCatalogRequest(batchText) && hadWelcome) {
               await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
             }
           }

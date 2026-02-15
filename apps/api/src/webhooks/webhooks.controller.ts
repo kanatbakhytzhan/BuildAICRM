@@ -455,8 +455,9 @@ export class WebhooksController {
         });
         const topicId = result.lead?.topicId ?? lead.topicId ?? null;
         if (topicId && result.reply != null && result.reply !== '') {
+          const hadWelcome = !!lead.welcomeMediaSentAt;
           await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
-          if (this.messages.isCatalogRequest(bodyToSave)) {
+          if (this.messages.isCatalogRequest(bodyToSave) && hadWelcome) {
             await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
           }
         }
