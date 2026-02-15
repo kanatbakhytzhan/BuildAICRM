@@ -293,7 +293,17 @@ export default function UsersPage() {
                             setEditTopicsIds(u.visibleTopicIds ?? []);
                             setEditTopicsError('');
                           }}
-                          style={{ marginLeft: 8, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                          style={{
+                            marginLeft: 8,
+                            padding: '0.25rem 0.5rem',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            color: 'var(--accent)',
+                            background: 'var(--accent-light)',
+                            border: 'none',
+                            borderRadius: 'var(--radius)',
+                            cursor: 'pointer',
+                          }}
                         >
                           Изменить
                         </button>
@@ -307,12 +317,21 @@ export default function UsersPage() {
                     </td>
                     {canInvite && (
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           {u.role !== 'owner' && (
                             <button
                               type="button"
                               onClick={() => { setResetPwdUser(u); setResetPwdValue(''); setResetPwdError(''); }}
-                              style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: 'var(--accent)',
+                                background: 'var(--accent-light)',
+                                border: '1px solid transparent',
+                                borderRadius: 'var(--radius)',
+                                cursor: 'pointer',
+                              }}
                             >
                               Сбросить пароль
                             </button>
@@ -321,7 +340,16 @@ export default function UsersPage() {
                             <button
                               type="button"
                               onClick={() => setDeleteUser(u)}
-                              style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: 'var(--danger)',
+                                background: 'var(--danger-bg)',
+                                border: '1px solid transparent',
+                                borderRadius: 'var(--radius)',
+                                cursor: 'pointer',
+                              }}
                             >
                               Удалить
                             </button>
