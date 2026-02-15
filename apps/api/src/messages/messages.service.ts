@@ -205,7 +205,8 @@ export class MessagesService {
     } else if (type === 'image') {
       path = 'send-image';
       params.set('imageurl', mediaUrl.trim());
-      params.set('caption', (caption ?? '').trim() || ' '); // ChatFlow требует непустой caption, иначе "Parameter required"
+      // ChatFlow требует непустой caption. Zero-width space — невидимый, возможно WhatsApp сгруппирует фото.
+      params.set('caption', (caption ?? '').trim() || '\u200B');
     } else {
       path = 'send-doc';
       params.set('docurl', mediaUrl.trim());
@@ -220,7 +221,7 @@ export class MessagesService {
           `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
           `instance_id=${encodeURIComponent(instanceId)}`,
           `jid=${encodeURIComponent(jid)}`,
-          `caption=${encodeURIComponent((caption ?? '').trim() || ' ')}`,
+          `caption=${encodeURIComponent((caption ?? '').trim() || '\u200B')}`,
           `imageurl=${encodeURIComponent(mediaUrl.trim())}`,
         ];
         query = parts.join('&');
