@@ -52,14 +52,17 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (typeof metadata.sender === 'string') name = metadata.sender;
   }
 
-  // Голосовые/медиа: если текст пустой, но есть mediaData, подставляем понятный плейсхолдер
+  // Голосовые/медиа: если текст пустой, но есть mediaData или messageType, подставляем понятный плейсхолдер
   const mediaData = body.mediaData as Record<string, unknown> | undefined;
-  if ((!text || !text.trim()) && mediaData && typeof mediaData === 'object') {
-    const mediaType = typeof mediaData.type === 'string' ? mediaData.type.toLowerCase() : '';
-    if (mediaType === 'audio') text = '[Голосовое сообщение]';
+  const messageType = typeof body.messageType === 'string' ? body.messageType.toLowerCase() : '';
+  if ((!text || !text.trim()) && (mediaData || messageType)) {
+    const mediaType = mediaData && typeof mediaData === 'object' && typeof mediaData.type === 'string'
+      ? (mediaData.type as string).toLowerCase()
+      : messageType;
+    if (mediaType === 'audio' || mediaType === 'ptt') text = '[Голосовое сообщение]';
     else if (mediaType === 'image') text = '[Фото]';
     else if (mediaType === 'video') text = '[Видео]';
-    else text = '[Медиа сообщение]';
+    else if (mediaData) text = '[Медиа сообщение]';
   }
 
   // Формат ChatFlow (старый): sender.id, sender.name, message.text / message.caption
@@ -174,6 +177,16 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
   }
   if (!channelExternalId && data?.instance_id !== undefined && typeof data.instance_id === 'string') channelExternalId = (data.instance_id as string).trim();
   if (!channelExternalId && payload?.instance_id !== undefined && typeof payload.instance_id === 'string') channelExternalId = (payload.instance_id as string).trim();
+  const nodeData = body.nodeData as Record<string, unknown> | undefined;
+  if (!channelExternalId && nodeData && typeof nodeData === 'object') {
+    if (typeof nodeData.instance_id === 'string' && nodeData.instance_id.trim()) channelExternalId = (nodeData.instance_id as string).trim();
+    else if (typeof nodeData.instanceId === 'string' && nodeData.instanceId.trim()) channelExternalId = (nodeData.instanceId as string).trim();
+    else {
+      const wh = nodeData.webHook as Record<string, unknown> | undefined;
+      if (wh && typeof wh === 'object' && typeof wh.instance_id === 'string' && (wh.instance_id as string).trim())
+        channelExternalId = (wh.instance_id as string).trim();
+    }
+  }
   const entryValue = Array.isArray(entry) && entry[0]?.changes?.[0]?.value as Record<string, unknown> | undefined;
   if (!channelExternalId && entryValue?.metadata) {
     const em = entryValue.metadata as Record<string, unknown>;
@@ -310,12 +323,20 @@ export class WebhooksController {
       };
     }
 
-    const { text, phone, name: senderName, channelExternalId } = parsed;
+    let { text, phone, name: senderName, channelExternalId } = parsed;
+    if (!channelExternalId && typeof query.instance_id === 'string' && query.instance_id.trim())
+      channelExternalId = (query.instance_id as string).trim();
 
-    // Канал: из webhook приходит instance_id (или channelId); если нет — используем "default" (один номер на тенанта).
-    const channel = await this.prisma.tenantChannel.findFirst({
+    // Канал: из webhook приходит instance_id (или channelId); если нет — "default", иначе первый канал тенанта.
+    let channel = await this.prisma.tenantChannel.findFirst({
       where: { tenantId, externalId: channelExternalId || 'default' },
     });
+    if (!channel && !channelExternalId) {
+      channel = await this.prisma.tenantChannel.findFirst({
+        where: { tenantId },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
     const resolvedChannelId = channel?.id ?? null;
 
     let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
@@ -353,8 +374,11 @@ export class WebhooksController {
     }
 
     const mediaData = body.mediaData as Record<string, unknown> | undefined;
-    const isVoice = text === '[Голосовое сообщение]' && mediaData && typeof mediaData === 'object'
-      && typeof mediaData.type === 'string' && mediaData.type.toLowerCase() === 'audio'
+    const mediaType = mediaData && typeof mediaData === 'object' && typeof mediaData.type === 'string'
+      ? (mediaData.type as string).toLowerCase()
+      : (typeof body.messageType === 'string' ? body.messageType.toLowerCase() : '');
+    const isVoice = (text === '[Голосовое сообщение]' || mediaType === 'audio' || mediaData?.ptt === true)
+      && mediaData && typeof mediaData === 'object'
       && typeof mediaData.url === 'string' && (mediaData.url as string).trim();
     let messageBody = text;
     if (isVoice) {
@@ -382,10 +406,9 @@ export class WebhooksController {
           settings.openaiApiKey,
           { language: lang },
         );
-        if (transcript) messageBody = transcript;
-        else messageBody = '';
+        messageBody = (transcript && transcript.trim()) ? transcript : '[Голосовое сообщение]';
       } else {
-        messageBody = '';
+        messageBody = '[Голосовое сообщение]';
       }
     }
     const incomingMediaUrl = isVoice && typeof mediaData!.url === 'string' ? (mediaData!.url as string).trim() : undefined;
@@ -471,9 +494,15 @@ export class WebhooksController {
     }
 
     const { text, phone, channelExternalId } = parsed;
-    const channel = await this.prisma.tenantChannel.findFirst({
+    let channel = await this.prisma.tenantChannel.findFirst({
       where: { tenantId, externalId: channelExternalId || 'default' },
     });
+    if (!channel && !channelExternalId) {
+      channel = await this.prisma.tenantChannel.findFirst({
+        where: { tenantId },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
     const resolvedChannelId = channel?.id ?? null;
     let lead = await this.prisma.lead.findFirst({ where: { tenantId, phone } });
     if (lead && !lead.channelId && resolvedChannelId) {
