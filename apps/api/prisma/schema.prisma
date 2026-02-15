@@ -229,6 +229,7 @@ model Lead {
   noResponseSince DateTime?
   aiNotes        String?   @db.Text
   aiReplyScheduledAt DateTime?  // Этап 3: ответить через 1 мин после последнего входящего
+  welcomeMediaSentAt DateTime?  // приветственные голос/фото отправлены один раз — больше не слать
   dealAmount     Decimal?  @db.Decimal(14, 2) // сумма закрытой сделки (для этапа success), тенге
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

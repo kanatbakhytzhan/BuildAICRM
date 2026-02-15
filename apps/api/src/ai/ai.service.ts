@@ -783,6 +783,9 @@ export class AiService {
           const topicId = result.lead?.topicId ?? lead.topicId ?? null;
           if (topicId) {
             await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
+            if (this.messages.isCatalogRequest(batchText)) {
+              await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
+            }
           }
         }
       } catch (err) {

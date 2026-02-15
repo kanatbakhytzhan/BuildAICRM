@@ -218,6 +218,23 @@ export class MessagesService {
       return { ok: r.ok, text: await r.text(), res: r };
     };
 
+    /** POST send-image (на случай если GET обрезается из-за длины URL). */
+    const trySendImagePost = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
+      const body = new URLSearchParams({
+        token: settings.chatflowApiToken!,
+        instance_id: instanceId,
+        jid,
+        caption: caption ?? '',
+        imageurl: mediaUrl.trim(),
+      });
+      const r = await fetch(`${baseUrl}/send-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+      return { ok: r.ok, text: await r.text(), res: r };
+    };
+
     const trySendMediaPost = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
       const r = await fetch(`${baseUrl}/send-media`, {
         method: 'POST',
@@ -243,7 +260,14 @@ export class MessagesService {
       }
       if (parsed?.success === true) return true;
 
-      // Fallback: попробовать send-media (POST) — ChatFlow может поддерживать только его
+      // Fallback для image: POST send-image (GET мог обрезать длинный URL)
+      if (type === 'image' && parsed?.success !== true) {
+        const imgPost = await trySendImagePost();
+        const imgParsed = (() => { try { return JSON.parse(imgPost.text) as { success?: boolean }; } catch { return {}; } })();
+        if (imgParsed?.success === true) return true;
+        this.logger.warn(`sendMediaToLead send-image POST failed tenantId=${tenantId} leadId=${leadId} response=${imgPost.text.slice(0, 200)}`);
+      }
+      // Fallback: send-media (POST) — у ChatFlow может не быть этого эндпоинта
       if ((type === 'audio' || type === 'image') && parsed?.success !== true) {
         const postResult = await trySendMediaPost();
         const postParsed = (() => { try { return JSON.parse(postResult.text) as { success?: boolean }; } catch { return {}; } })();
@@ -261,9 +285,15 @@ export class MessagesService {
     }
   }
 
-  /** Отправить приветственные медиа темы лиду (голосовое, фото). Вызывать после текстового ответа AI. */
+  /** Приветственные медиа (голос + фото) — только один раз за диалог. После отправки ставим welcomeMediaSentAt. */
   async sendWelcomeMediaForTopic(tenantId: string, leadId: string, topicId: string | null): Promise<void> {
     if (!topicId) return;
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: leadId, tenantId },
+      select: { welcomeMediaSentAt: true },
+    });
+    if (lead?.welcomeMediaSentAt) return; // уже отправляли — не дублируем
+
     const topic = await this.prisma.tenantTopic.findFirst({
       where: { id: topicId, tenantId },
       select: { welcomeVoiceUrl: true, welcomeImageUrl: true, welcomeImageUrls: true },
@@ -286,6 +316,45 @@ export class MessagesService {
     for (const { url, type } of toSend) {
       await this.sendMediaToLead(tenantId, leadId, url, type);
     }
+    await this.prisma.lead.update({
+      where: { id: leadId },
+      data: { welcomeMediaSentAt: new Date() },
+    });
+  }
+
+  /** Отправить только фото темы (каталог) — по запросу «скинь каталог», «пришли фото» и т.д. */
+  async sendCatalogImagesForTopic(tenantId: string, leadId: string, topicId: string | null): Promise<void> {
+    if (!topicId) return;
+    const topic = await this.prisma.tenantTopic.findFirst({
+      where: { id: topicId, tenantId },
+      select: { welcomeImageUrl: true, welcomeImageUrls: true },
+    });
+    if (!topic) return;
+
+    const toSend: string[] = [];
+    if (topic.welcomeImageUrl?.trim() && !topic.welcomeImageUrl.includes('localhost')) {
+      toSend.push(topic.welcomeImageUrl.trim());
+    }
+    const extras = Array.isArray(topic.welcomeImageUrls) ? topic.welcomeImageUrls : [];
+    for (const u of extras) {
+      const url = typeof u === 'string' ? u : String(u ?? '').trim();
+      if (url && !url.includes('localhost')) toSend.push(url);
+    }
+    for (const url of toSend) {
+      await this.sendMediaToLead(tenantId, leadId, url, 'image', '');
+    }
+  }
+
+  /** Запрос каталога/фото: «скинь каталог», «пришли фото», «прайс» и т.д. */
+  isCatalogRequest(text: string): boolean {
+    const t = (text ?? '').toLowerCase().replace(/\s+/g, ' ');
+    const catalogPhrases = [
+      'каталог', 'скинь каталог', 'пришли каталог', 'пришлите каталог',
+      'скинь фото', 'пришли фото', 'пришлите фото', 'фото скинь',
+      'прайс', 'скинь прайс', 'пришли прайс', 'пришлите прайс',
+      'прайс-лист', 'каталог скинь', 'фото каталог',
+    ];
+    return catalogPhrases.some((p) => t.includes(p));
   }
 
   /** Fallback: отправить ссылку на медиа текстом (ChatFlow не имеет send-media). */
