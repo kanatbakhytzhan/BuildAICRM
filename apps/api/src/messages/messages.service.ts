@@ -152,12 +152,13 @@ export class MessagesService {
     }
   }
 
-  /** Отправить медиа (голосовое, фото, документ) лиду в WhatsApp через ChatFlow send-media. */
+  /** Отправить медиа лиду в WhatsApp через ChatFlow: send-audio, send-image, send-doc (официальные GET-эндпоинты). */
   async sendMediaToLead(
     tenantId: string,
     leadId: string,
     mediaUrl: string,
     type: 'audio' | 'image' | 'document',
+    caption = '',
   ): Promise<boolean> {
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
@@ -190,49 +191,43 @@ export class MessagesService {
       return false;
     }
     const jid = `${phone}@s.whatsapp.net`;
-    const mediaType = type === 'audio' ? 'ptt' : type;
     const baseUrl = 'https://app.chatflow.kz/api/v1';
-    const payload = {
+    const params = new URLSearchParams({
       token: settings.chatflowApiToken!,
       instance_id: instanceId,
       jid,
-      url: mediaUrl.trim(),
-      type: mediaType,
-    };
+    });
 
-    const tryFetch = async (method: 'GET' | 'POST', body?: string, contentType?: string): Promise<{ ok: boolean; text: string; res: Response }> => {
-      const url = method === 'GET' ? `${baseUrl}/send-media?${new URLSearchParams(payload as Record<string, string>).toString()}` : `${baseUrl}/send-media`;
-      const res = await fetch(url, {
-        method,
-        ...(body !== undefined && { headers: contentType ? { 'Content-Type': contentType } : {}, body }),
-      });
+    let path: string;
+    if (type === 'audio') {
+      path = 'send-audio';
+      params.set('audiourl', mediaUrl.trim());
+    } else if (type === 'image') {
+      path = 'send-image';
+      params.set('imageurl', mediaUrl.trim());
+      if (caption) params.set('caption', caption);
+    } else {
+      path = 'send-doc';
+      params.set('docurl', mediaUrl.trim());
+      if (caption) params.set('caption', caption);
+    }
+
+    const url = `${baseUrl}/${path}?${params.toString()}`;
+    try {
+      const res = await fetch(url);
       const text = await res.text();
       let parsed: { success?: boolean } = {};
       try {
         parsed = JSON.parse(text) as { success?: boolean };
       } catch {
-        return { ok: false, text, res };
-      }
-      return { ok: parsed?.success === true, text, res };
-    };
-
-    try {
-      let result = await tryFetch('GET');
-      if (!result.ok && result.text.trimStart().startsWith('<!')) {
-        result = await tryFetch('POST', new URLSearchParams(payload as Record<string, string>).toString(), 'application/x-www-form-urlencoded');
-      }
-      if (!result.ok && result.text.trimStart().startsWith('<!')) {
-        result = await tryFetch('POST', JSON.stringify(payload), 'application/json');
-      }
-      if (result.ok) return true;
-      if (result.text.trimStart().startsWith('<!')) {
-        this.logger.warn(`sendMediaToLead: ChatFlow returned HTML (send-media не поддерживается), отправляю ссылку текстом tenantId=${tenantId} leadId=${leadId}`);
+        this.logger.warn(`sendMediaToLead FAIL: not JSON tenantId=${tenantId} leadId=${leadId} type=${type} response=${text.slice(0, 200)}`);
         return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
       }
-      this.logger.warn(`sendMediaToLead FAIL: ChatFlow API tenantId=${tenantId} leadId=${leadId} response=${result.text.slice(0, 300)}`);
+      if (parsed?.success === true) return true;
+      this.logger.warn(`sendMediaToLead FAIL: ChatFlow ${path} tenantId=${tenantId} leadId=${leadId} response=${text.slice(0, 300)}`);
       return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
     } catch (err) {
-      this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} mediaUrl=${mediaUrl} error=${(err as Error).message}`);
+      this.logger.warn(`sendMediaToLead FAIL: fetch error tenantId=${tenantId} leadId=${leadId} type=${type} error=${(err as Error).message}`);
       return this.sendMediaLinkAsText(tenantId, leadId, mediaUrl.trim(), type);
     }
   }
