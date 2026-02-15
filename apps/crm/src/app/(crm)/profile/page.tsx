@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { users, topics, type User } from '@/lib/api';
 
 function roleLabel(r: string) {
@@ -19,6 +20,7 @@ function initials(name: string | null, email: string) {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [topicsList, setTopicsList] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,6 +241,28 @@ export default function ProfilePage() {
             {passwordSaving ? 'Сохранение...' : 'Сохранить пароль'}
           </button>
         </form>
+        <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.removeItem('token');
+            router.replace('/login');
+            router.refresh();
+          }}
+          style={{
+            width: '100%',
+            padding: '0.6rem 1rem',
+            borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text-muted)',
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          Выйти
+        </button>
       </div>
     </div>
   );
