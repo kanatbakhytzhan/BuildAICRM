@@ -14,6 +14,7 @@ export default function ClientAIPage() {
   const [form, setForm] = useState({
     openaiApiKey: '',
     openaiModel: 'gpt-4o-mini',
+    transcriptionLanguage: '' as '' | 'kk' | 'ru',
     systemPrompt: '',
     respondFirst: true,
     suggestCall: true,
@@ -38,6 +39,7 @@ export default function ClientAIPage() {
         setForm({
           openaiApiKey: s.openaiApiKey && s.openaiApiKey !== '••••••••' ? s.openaiApiKey : '',
           openaiModel: s.openaiModel || 'gpt-4o-mini',
+          transcriptionLanguage: (s.transcriptionLanguage === 'kk' || s.transcriptionLanguage === 'ru' ? s.transcriptionLanguage : '') as '' | 'kk' | 'ru',
           systemPrompt: s.systemPrompt || '',
           respondFirst: s.respondFirst,
           suggestCall: s.suggestCall,
@@ -119,6 +121,20 @@ export default function ClientAIPage() {
             <option value="gpt-4o">gpt-4o</option>
             <option value="gpt-4-turbo">gpt-4-turbo</option>
             <option value="gpt-4">gpt-4</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Язык расшифровки голосовых (Whisper)</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>Если клиенты часто пишут голосовыми на казахском — выберите «Казахский», тогда расшифровка будет стабильнее.</p>
+          <select
+            value={form.transcriptionLanguage}
+            onChange={(e) => setForm((f) => ({ ...f, transcriptionLanguage: e.target.value as '' | 'kk' | 'ru' }))}
+            style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8, minWidth: 200 }}
+          >
+            <option value="">Авто (по истории чата)</option>
+            <option value="kk">Казахский</option>
+            <option value="ru">Русский</option>
           </select>
         </div>
 

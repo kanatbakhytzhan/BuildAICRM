@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "start:render": "node -r ts-node/register/transpile-only src/main.ts",
     "prisma": "prisma",
-    "db:seed": "ts-node prisma/seed.ts"
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:baseline": "prisma migrate resolve --applied 20250210120000_add_channels_topics_visibility && prisma migrate resolve --applied 20250210140000_add_topic_scenario_media_respond_first && prisma migrate resolve --applied 20250210180000_add_openai_model && prisma migrate resolve --applied 20250210200000_add_lead_deal_amount && prisma migrate resolve --applied 20250210210000_add_topic_welcome_media && prisma migrate resolve --applied 20250210220000_add_quick_reply_and_dashboard && prisma migrate resolve --applied 20250211000000_add_topic_welcome_image_urls && prisma migrate resolve --applied 20250213000000_add_revenue_goal && prisma migrate resolve --applied 20250213100000_add_transcription_language"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
