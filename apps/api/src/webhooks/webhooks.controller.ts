@@ -454,7 +454,7 @@ export class WebhooksController {
           skipSaveIncoming: true,
         });
         const topicId = result.lead?.topicId ?? lead.topicId ?? null;
-        if (topicId) {
+        if (topicId && result.reply != null && result.reply !== '') {
           await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
         }
         return {

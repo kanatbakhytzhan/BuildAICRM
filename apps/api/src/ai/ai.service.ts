@@ -302,7 +302,9 @@ export class AiService {
 
 Тема/продукт: направления — панели, ламинат, линолеум, погрузчик. Если тема не ясна — один раз спроси: «Что вас интересует: панели, ламинат, линолеум или другое?» (или то же на казахском). Не повторяй многократно.
 
-Не приветствуй первым — только отвечай на реплики клиента.`;
+Не приветствуй первым — только отвечай на реплики клиента.
+
+Ничего не отправляй, если не нужно: на короткие реплики вроде «Хорошо», «Ок», «Понятно», «Спасибо» или благодарности без вопроса — отвечай ровно [IGNORE] (без кавычек). Система не отправит сообщение клиенту.`;
   }
 
   private formatMetadataForPrompt(metadata: Prisma.JsonValue | null): string {
@@ -613,6 +615,17 @@ export class AiService {
       }
     }
 
+    // [IGNORE] от модели — ничего не отправляем (инструкция «ничего не отправляй, если не нужно»)
+    if (/^\[IGNORE\]$/i.test(reply?.trim() ?? '')) {
+      await this.logs.log({
+        tenantId,
+        category: 'ai',
+        message: `AI не отвечает (IGNORE) для лида ${lead.id}`,
+        meta: { leadId: lead.id, input: text },
+      });
+      return { lead: updatedLead, aiHandled: true, reply: undefined };
+    }
+
     await this.messages.create(lead.id, {
       source: MessageSource.ai,
       direction: MessageDirection.out,
@@ -767,10 +780,10 @@ export class AiService {
         });
         if (result.reply) {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
-        }
-        const topicId = result.lead?.topicId ?? lead.topicId ?? null;
-        if (topicId) {
-          await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
+          const topicId = result.lead?.topicId ?? lead.topicId ?? null;
+          if (topicId) {
+            await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
+          }
         }
       } catch (err) {
         await this.logs.log({
