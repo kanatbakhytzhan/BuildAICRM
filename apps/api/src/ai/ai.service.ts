@@ -335,6 +335,7 @@ export class AiService {
     leadMetadata?: Prisma.JsonValue | null;
     topicScenario?: string | null;
     topicName?: string | null;
+    aiStopWord?: string | null;
   }): Promise<string> {
     const recent = await this.prisma.message.findMany({
       where: { leadId: params.leadId },
@@ -345,6 +346,10 @@ export class AiService {
     let systemContent = (params.systemPrompt?.trim() || this.getDefaultSystemPrompt()) + contextBlock;
     if (params.topicScenario?.trim()) {
       systemContent += `\n\nСценарий по текущей теме${params.topicName ? ` (${params.topicName})` : ''} — придерживайся его в ответах:\n${params.topicScenario.trim()}`;
+    }
+    const stopWord = params.aiStopWord?.trim();
+    if (stopWord) {
+      systemContent += `\n\nВажно: каждый ответ заканчивай словом «${stopWord}». После этого слова ничего не пиши.`;
     }
     const history = recent.map((m) => ({
       role: m.direction === MessageDirection.in ? ('user' as const) : ('assistant' as const),
@@ -363,8 +368,12 @@ export class AiService {
       model,
       messages,
       max_tokens: 500,
+      ...(stopWord ? { stop: [stopWord] } : {}),
     });
-    const content = completion.choices[0]?.message?.content?.trim();
+    let content = completion.choices[0]?.message?.content?.trim();
+    if (stopWord && content && !content.endsWith(stopWord)) {
+      content = content + ' ' + stopWord;
+    }
     return content || 'Спасибо за сообщение! Мы скоро свяжемся с вами.';
   }
 
@@ -591,6 +600,7 @@ export class AiService {
           leadMetadata: updatedLead.metadata,
           topicScenario: null,
           topicName,
+          aiStopWord: settings.aiStopWord,
         });
       } catch (err) {
         await this.logs.log({

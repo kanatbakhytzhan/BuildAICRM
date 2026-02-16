@@ -86,7 +86,7 @@ export class AdminTenantsService {
     await this.findOne(tenantId);
     const allowed = [
       'aiEnabled', 'openaiApiKey', 'openaiModel', 'transcriptionLanguage', 'chatflowInstanceId', 'chatflowApiToken', 'webhookUrl', 'webhookKey',
-      'systemPrompt', 'respondFirst', 'suggestCall', 'askQuestions',
+      'systemPrompt', 'aiStopWord', 'respondFirst', 'suggestCall', 'askQuestions',
       'nightModeEnabled', 'nightModeStart', 'nightModeEnd', 'nightModeMessage',
       'followUpEnabled', 'followUpDelay', 'followUpMessage',
       'revenueGoal',

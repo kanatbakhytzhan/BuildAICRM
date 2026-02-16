@@ -114,6 +114,7 @@ model TenantSettings {
   webhookUrl        String?
   webhookKey        String?  @unique // ключ для входа по ?key= (как у тебя было: tenant.webhook_key)
   systemPrompt     String?   @db.Text
+  aiStopWord       String?   // стоп-слово: после него ИИ перестаёт писать (напр. БАКСТРОЙ)
   respondFirst     Boolean  @default(false)  // false = не приветствовать первым, ждать сообщение клиента
   suggestCall      Boolean  @default(true)
   askQuestions     Boolean  @default(true)

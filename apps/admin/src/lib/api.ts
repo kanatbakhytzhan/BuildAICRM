@@ -134,6 +134,7 @@ export type TenantSettings = {
   webhookUrl: string | null;
   webhookKey: string | null;
   systemPrompt: string | null;
+  aiStopWord: string | null;
   respondFirst: boolean;
   suggestCall: boolean;
   askQuestions: boolean;

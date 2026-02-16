@@ -16,6 +16,7 @@ export default function ClientAIPage() {
     openaiModel: 'gpt-4o-mini',
     transcriptionLanguage: '' as '' | 'kk' | 'ru',
     systemPrompt: '',
+    aiStopWord: '',
     respondFirst: true,
     suggestCall: true,
     askQuestions: true,
@@ -41,6 +42,7 @@ export default function ClientAIPage() {
           openaiModel: s.openaiModel || 'gpt-4o-mini',
           transcriptionLanguage: (s.transcriptionLanguage === 'kk' || s.transcriptionLanguage === 'ru' ? s.transcriptionLanguage : '') as '' | 'kk' | 'ru',
           systemPrompt: s.systemPrompt || '',
+          aiStopWord: s.aiStopWord || '',
           respondFirst: s.respondFirst,
           suggestCall: s.suggestCall,
           askQuestions: s.askQuestions,
@@ -147,6 +149,18 @@ export default function ClientAIPage() {
             rows={6}
             placeholder="Ты — полезный ассистент компании..."
             style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Стоп-слово AI</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>После этого слова ИИ перестаёт писать. Ответ будет обрезаться на нём (слово включается). Пример: БАКСТРОЙ</p>
+          <input
+            type="text"
+            value={form.aiStopWord}
+            onChange={(e) => setForm((f) => ({ ...f, aiStopWord: e.target.value.trim() }))}
+            placeholder="БАКСТРОЙ или оставьте пусто"
+            style={{ width: '100%', maxWidth: 280, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8 }}
           />
         </div>
 
