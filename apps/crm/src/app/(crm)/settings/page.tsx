@@ -29,9 +29,11 @@ export default function SettingsPage() {
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
   const voiceInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imagesInputRef = useRef<HTMLInputElement>(null);
+  const documentsInputRef = useRef<HTMLInputElement>(null);
   const [qrLabel, setQrLabel] = useState('');
   const [qrMessageText, setQrMessageText] = useState('');
   const [editQr, setEditQr] = useState<QuickReplyTemplate | null>(null);
@@ -207,8 +209,31 @@ export default function SettingsPage() {
                 </div>
               </label>
               <label style={{ display: 'block', marginBottom: 8 }}>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Документы / PDF (каталог) — по одному URL на строку</span>
-                <textarea placeholder="https://... PDF, прайс-лист и т.д." value={editTopicWelcomeDocumentUrls.join('\n')} onChange={(e) => setEditTopicWelcomeDocumentUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', resize: 'vertical' }} />
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Документы / PDF (каталог) — URL или загрузка с ПК</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea placeholder="https://... по одному URL на строку" value={editTopicWelcomeDocumentUrls.join('\n')} onChange={(e) => setEditTopicWelcomeDocumentUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', resize: 'vertical' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input ref={documentsInputRef} type="file" accept=".pdf,application/pdf" multiple style={{ display: 'none' }} onChange={async (e) => {
+                      const files = e.target.files;
+                      if (!files?.length) return;
+                      setUploadingDocuments(true);
+                      try {
+                        const urls: string[] = [];
+                        for (let i = 0; i < files.length; i++) {
+                          const { url } = await uploadFile(files[i]);
+                          urls.push(url);
+                        }
+                        setEditTopicWelcomeDocumentUrls((prev) => [...prev, ...urls]);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Ошибка загрузки');
+                      } finally {
+                        setUploadingDocuments(false);
+                        e.target.value = '';
+                      }
+                    }} />
+                    <button type="button" onClick={() => documentsInputRef.current?.click()} disabled={uploadingDocuments} style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: uploadingDocuments ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>{uploadingDocuments ? '…' : 'Загрузить PDF с ПК'}</button>
+                  </div>
+                </div>
               </label>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>

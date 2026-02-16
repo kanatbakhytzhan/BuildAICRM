@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const ALLOWED_AUDIO = ['audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/wav', 'audio/mp4', 'audio/webm'];
 const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_DOCUMENT = ['application/pdf'];
 
 function getExtension(mimetype: string): string {
   const map: Record<string, string> = {
@@ -24,6 +25,7 @@ function getExtension(mimetype: string): string {
     'image/png': '.png',
     'image/gif': '.gif',
     'image/webp': '.webp',
+    'application/pdf': '.pdf',
   };
   return map[mimetype] || '.bin';
 }
@@ -38,7 +40,7 @@ export class UploadController {
     FileInterceptor('file', {
       limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const ok = [...ALLOWED_AUDIO, ...ALLOWED_IMAGE].includes(file.mimetype);
+        const ok = [...ALLOWED_AUDIO, ...ALLOWED_IMAGE, ...ALLOWED_DOCUMENT].includes(file.mimetype);
         cb(ok ? null : new BadRequestException('Недопустимый тип файла'), ok);
       },
       storage: diskStorage({
@@ -59,7 +61,8 @@ export class UploadController {
     if (this.cloudinary.isEnabled()) {
       try {
         const buf = fs.readFileSync(file.path);
-        const cloudUrl = await this.cloudinary.uploadBuffer(buf);
+        const isPdf = file.mimetype === 'application/pdf';
+        const cloudUrl = await this.cloudinary.uploadBuffer(buf, isPdf ? { resourceType: 'raw' } : undefined);
         if (cloudUrl) return { url: cloudUrl };
       } catch {
         // fallback to local
