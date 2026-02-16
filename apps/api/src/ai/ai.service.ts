@@ -731,6 +731,17 @@ export class AiService {
       include: { stage: true },
     });
     for (const lead of leads) {
+      const leadFresh = await this.prisma.lead.findUnique({
+        where: { id: lead.id },
+        select: { aiActive: true },
+      });
+      if (!leadFresh?.aiActive) {
+        await this.prisma.lead.update({
+          where: { id: lead.id },
+          data: { aiReplyScheduledAt: null },
+        });
+        continue;
+      }
       const settings = await this.prisma.tenantSettings.findUnique({
         where: { tenantId: lead.tenantId },
       });

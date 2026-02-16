@@ -448,7 +448,7 @@ export class WebhooksController {
     if (stopWord && bodyToSave.toUpperCase().includes(stopWord.toUpperCase())) {
       await this.prisma.lead.update({
         where: { id: lead.id },
-        data: { aiActive: false },
+        data: { aiActive: false, aiReplyScheduledAt: null },
       });
       lead = { ...lead, aiActive: false };
     }
