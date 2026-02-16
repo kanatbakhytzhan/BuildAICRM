@@ -210,13 +210,12 @@ export class MessagesService {
     } else {
       path = 'send-doc';
       params.set('docurl', mediaUrl.trim());
-      params.set('caption', caption ?? '');
+      params.set('caption', (caption ?? '').trim() || '\u200B');
     }
 
     const trySendMedia = async (): Promise<{ ok: boolean; text: string; res: Response }> => {
       let query: string;
       if (type === 'image') {
-        // ChatFlow API: только GET; порядок и явное кодирование
         const parts = [
           `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
           `instance_id=${encodeURIComponent(instanceId)}`,
@@ -225,8 +224,24 @@ export class MessagesService {
           `imageurl=${encodeURIComponent(mediaUrl.trim())}`,
         ];
         query = parts.join('&');
+      } else if (type === 'document') {
+        const parts = [
+          `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
+          `instance_id=${encodeURIComponent(instanceId)}`,
+          `jid=${encodeURIComponent(jid)}`,
+          `caption=${encodeURIComponent((caption ?? '').trim() || '\u200B')}`,
+          `docurl=${encodeURIComponent(mediaUrl.trim())}`,
+        ];
+        query = parts.join('&');
       } else {
-        query = params.toString();
+        // audio
+        const parts = [
+          `token=${encodeURIComponent(settings.chatflowApiToken!)}`,
+          `instance_id=${encodeURIComponent(instanceId)}`,
+          `jid=${encodeURIComponent(jid)}`,
+          `audiourl=${encodeURIComponent(mediaUrl.trim())}`,
+        ];
+        query = parts.join('&');
       }
       const url = `${baseUrl}/${path}?${query}`;
       const r = await fetch(url);
@@ -259,8 +274,8 @@ export class MessagesService {
       }
       if (parsed?.success === true) return true;
 
-      // Повтор только для image при "Failed to fetch stream" (таймаут/задержка на стороне ChatFlow)
-      if (type === 'image' && String(parsed?.message ?? '').includes('Failed to fetch stream')) {
+      // Повтор при "Failed to fetch stream" (таймаут на стороне ChatFlow)
+      if ((type === 'image' || type === 'document') && String(parsed?.message ?? '').includes('Failed to fetch stream')) {
         await new Promise((r) => setTimeout(r, 2500));
         const retry = await trySendMedia();
         let retryParsed: { success?: boolean } = {};

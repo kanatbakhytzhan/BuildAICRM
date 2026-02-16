@@ -62,7 +62,8 @@ export class UploadController {
       try {
         const buf = fs.readFileSync(file.path);
         const isPdf = file.mimetype === 'application/pdf';
-        const cloudUrl = await this.cloudinary.uploadBuffer(buf, isPdf ? { resourceType: 'raw' } : undefined);
+        const publicId = isPdf ? `buildcrm/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf` : undefined;
+        const cloudUrl = await this.cloudinary.uploadBuffer(buf, isPdf ? { resourceType: 'raw', publicId } : undefined);
         if (cloudUrl) return { url: cloudUrl };
       } catch {
         // fallback to local

@@ -23,14 +23,21 @@ export class CloudinaryService {
 
   /**
    * Загружает буфер в Cloudinary. Возвращает public URL или null при ошибке.
+   * publicId с расширением .pdf — URL будет с .pdf (нужно для send-doc в WhatsApp).
    */
-  async uploadBuffer(buffer: Buffer, options?: { resourceType?: 'image' | 'video' | 'raw'; folder?: string }): Promise<string | null> {
+  async uploadBuffer(buffer: Buffer, options?: { resourceType?: 'image' | 'video' | 'raw'; folder?: string; publicId?: string }): Promise<string | null> {
     if (!this.enabled) return null;
     try {
       const stream = Readable.from(buffer);
+      const resourceType = options?.resourceType ?? 'auto';
+      const opts: { resource_type: 'image' | 'video' | 'raw' | 'auto'; folder: string; public_id?: string } = {
+        resource_type: resourceType,
+        folder: options?.folder ?? 'buildcrm',
+      };
+      if (options?.publicId) opts.public_id = options.publicId;
       return new Promise<string | null>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
-          { resource_type: options?.resourceType ?? 'auto', folder: options?.folder ?? 'buildcrm' },
+          opts,
           (err, result) => {
             if (err) reject(err);
             else resolve(result?.secure_url ?? null);
