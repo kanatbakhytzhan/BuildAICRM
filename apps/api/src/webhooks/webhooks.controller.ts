@@ -439,6 +439,20 @@ export class WebhooksController {
     });
     this.followups.cancelLeadFollowUps(lead.id);
 
+    // Клиент или менеджер написал стоп-слово → отключаем AI для этого чата
+    const settingsForStop = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { aiStopWord: true },
+    });
+    const stopWord = settingsForStop?.aiStopWord?.trim();
+    if (stopWord && bodyToSave.toUpperCase().includes(stopWord.toUpperCase())) {
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: { aiActive: false },
+      });
+      lead = { ...lead, aiActive: false };
+    }
+
     // Режим «приветствие»: не планируем крон, сразу генерируем ответ и возвращаем reply + URL медиа. Отправку делает ChatFlow (текст через send-text, медиа — своими узлами).
     const isWelcome = query.welcome === true || query.welcome === '1' || body.welcome === true || body.welcome === '1';
     if (isWelcome) {
