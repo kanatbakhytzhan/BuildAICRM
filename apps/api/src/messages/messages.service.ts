@@ -59,17 +59,40 @@ export class MessagesService {
     const message = await this.create(lead.id, data);
     const now = new Date();
 
+    const updateData: { lastMessageAt: Date; lastMessagePreview: string | null; noResponseSince: Date | null; aiActive?: boolean } = {
+      lastMessageAt: now,
+      lastMessagePreview: data.body?.trim()
+        ? data.body.slice(0, 120)
+        : data.mediaUrl
+          ? '🎵 Голосовое'
+          : null,
+      noResponseSince: data.direction === MessageDirection.out ? now : null,
+    };
+
+    // Менеджер отправил стоп-слово в чат → отключаем AI для этого лида
+    if (
+      data.direction === MessageDirection.out &&
+      data.source === MessageSource.human &&
+      data.body?.trim()
+    ) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { aiStopWord: true },
+      });
+      const stopWord = settings?.aiStopWord?.trim();
+      if (stopWord) {
+        const bodyNorm = data.body.trim().toUpperCase();
+        const wordNorm = stopWord.toUpperCase();
+        if (bodyNorm === wordNorm || bodyNorm.includes(wordNorm)) {
+          updateData.aiActive = false;
+          this.logger.log(`createForLead: стоп-слово «${stopWord}» — AI отключён для лида ${leadId}`);
+        }
+      }
+    }
+
     await this.prisma.lead.update({
       where: { id: lead.id },
-      data: {
-        lastMessageAt: now,
-        lastMessagePreview: data.body?.trim()
-          ? data.body.slice(0, 120)
-          : data.mediaUrl
-            ? '🎵 Голосовое'
-            : null,
-        noResponseSince: data.direction === MessageDirection.out ? now : null,
-      },
+      data: updateData,
     });
 
     // Отправить исходящее голосовое в WhatsApp

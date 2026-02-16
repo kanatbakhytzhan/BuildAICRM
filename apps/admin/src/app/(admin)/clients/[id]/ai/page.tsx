@@ -153,8 +153,8 @@ export default function ClientAIPage() {
         </div>
 
         <div style={{ marginBottom: '1.5rem', padding: '1.25rem', border: '1px solid var(--border)', borderRadius: 12 }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Стоп-слово AI</h3>
-          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>После этого слова ИИ перестаёт писать. Ответ будет обрезаться на нём (слово включается). Пример: БАКСТРОЙ</p>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Стоп-слово (отключение AI в чате)</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: 'var(--text-muted)' }}>Если менеджер отправит в чат с клиентом сообщение, содержащее это слово, ИИ-менеджер для этого чата отключится. Пример: БАКСТРОЙ</p>
           <input
             type="text"
             value={form.aiStopWord}
