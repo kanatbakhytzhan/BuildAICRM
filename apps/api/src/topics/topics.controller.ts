@@ -36,6 +36,11 @@ class CreateTopicDto {
   welcomeImageUrls?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  welcomeDocumentUrls?: string[];
+
+  @IsOptional()
   @IsString()
   addressText?: string | null;
 }
@@ -70,6 +75,11 @@ class UpdateTopicDto {
   @IsArray()
   @IsString({ each: true })
   welcomeImageUrls?: string[] | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  welcomeDocumentUrls?: string[] | null;
 
   @IsOptional()
   @IsString()

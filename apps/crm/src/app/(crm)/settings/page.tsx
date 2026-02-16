@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [editTopicWelcomeVoiceUrl, setEditTopicWelcomeVoiceUrl] = useState('');
   const [editTopicWelcomeImageUrl, setEditTopicWelcomeImageUrl] = useState('');
   const [editTopicWelcomeImageUrls, setEditTopicWelcomeImageUrls] = useState<string[]>([]);
+  const [editTopicWelcomeDocumentUrls, setEditTopicWelcomeDocumentUrls] = useState<string[]>([]);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -106,6 +107,7 @@ export default function SettingsPage() {
                 setEditTopicWelcomeVoiceUrl(t.welcomeVoiceUrl ?? '');
                 setEditTopicWelcomeImageUrl(t.welcomeImageUrl ?? '');
                 setEditTopicWelcomeImageUrls(Array.isArray(t.welcomeImageUrls) ? t.welcomeImageUrls : []);
+                setEditTopicWelcomeDocumentUrls(Array.isArray(t.welcomeDocumentUrls) ? t.welcomeDocumentUrls : []);
               }} style={{ padding: '6px 12px', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Изменить</button>
               <button
                 type="button"
@@ -204,6 +206,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </label>
+              <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Документы / PDF (каталог) — по одному URL на строку</span>
+                <textarea placeholder="https://... PDF, прайс-лист и т.д." value={editTopicWelcomeDocumentUrls.join('\n')} onChange={(e) => setEditTopicWelcomeDocumentUrls(e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))} rows={2} style={{ width: '100%', maxWidth: 480, padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', resize: 'vertical' }} />
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button type="button" onClick={() => setEditTopic(null)} style={{ padding: '0.5rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>Отмена</button>
@@ -215,6 +221,7 @@ export default function SettingsPage() {
                   welcomeVoiceUrl: editTopicWelcomeVoiceUrl.trim() || null,
                   welcomeImageUrl: editTopicWelcomeImageUrl.trim() || null,
                   welcomeImageUrls: editTopicWelcomeImageUrls.length > 0 ? editTopicWelcomeImageUrls : null,
+                  welcomeDocumentUrls: editTopicWelcomeDocumentUrls.length > 0 ? editTopicWelcomeDocumentUrls : null,
                 }).then(loadAll).then(() => setEditTopic(null)).catch((e) => setError(e.message)).finally(() => setSaving(false));
               }} disabled={saving} style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600 }}>{saving ? '…' : 'Сохранить'}</button>
             </div>

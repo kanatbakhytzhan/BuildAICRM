@@ -68,6 +68,7 @@ model TenantTopic {
   welcomeVoiceUrl   String?  // приветственное голосовое по теме (URL или загруженный файл)
   welcomeImageUrl   String?  // приветственное фото (основное, для обратной совместимости)
   welcomeImageUrls  Json?    // массив URL фото/прайсов (поддержка нескольких)
+  welcomeDocumentUrls Json?  // массив URL документов/PDF (каталог по теме)
   addressText       String?  @db.Text   // адрес/местоположение по теме
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

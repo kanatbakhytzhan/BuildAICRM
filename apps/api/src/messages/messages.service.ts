@@ -324,27 +324,35 @@ export class MessagesService {
     });
   }
 
-  /** Отправить только фото темы (каталог) — по запросу «скинь каталог», «пришли фото» и т.д. */
+  /** Отправить каталог по теме: все фото + документы (PDF) — по запросу «скинь каталог», «пришли фото» и т.д. */
   async sendCatalogImagesForTopic(tenantId: string, leadId: string, topicId: string | null): Promise<void> {
     if (!topicId) return;
     const topic = await this.prisma.tenantTopic.findFirst({
       where: { id: topicId, tenantId },
-      select: { welcomeImageUrl: true, welcomeImageUrls: true },
+      select: { welcomeImageUrl: true, welcomeImageUrls: true, welcomeDocumentUrls: true },
     });
     if (!topic) return;
 
-    const toSend: string[] = [];
+    const imageUrls: string[] = [];
     if (topic.welcomeImageUrl?.trim() && !topic.welcomeImageUrl.includes('localhost')) {
-      toSend.push(topic.welcomeImageUrl.trim());
+      imageUrls.push(topic.welcomeImageUrl.trim());
     }
     const extras = Array.isArray(topic.welcomeImageUrls) ? topic.welcomeImageUrls : [];
     for (const u of extras) {
       const url = typeof u === 'string' ? u : String(u ?? '').trim();
-      if (url && !url.includes('localhost')) toSend.push(url);
+      if (url && !url.includes('localhost')) imageUrls.push(url);
     }
-    if (toSend.length > 0) {
-      await Promise.all(toSend.map((url) => this.sendMediaToLead(tenantId, leadId, url, 'image', '')));
+
+    const docUrls: string[] = [];
+    const docArr = Array.isArray(topic.welcomeDocumentUrls) ? topic.welcomeDocumentUrls : [];
+    for (const u of docArr) {
+      const url = typeof u === 'string' ? u : String(u ?? '').trim();
+      if (url && !url.includes('localhost')) docUrls.push(url);
     }
+
+    const imagePromises = imageUrls.map((url) => this.sendMediaToLead(tenantId, leadId, url, 'image', ''));
+    const docPromises = docUrls.map((url) => this.sendMediaToLead(tenantId, leadId, url, 'document', ''));
+    await Promise.all([...imagePromises, ...docPromises]);
   }
 
   /** Запрос каталога/фото: «скинь каталог», «пришли фото», «прайс» и т.д. */

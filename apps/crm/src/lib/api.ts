@@ -40,7 +40,7 @@ export type Tenant = { id: string; name: string };
 export type User = { id: string; email: string; name: string | null; tenantId?: string; role: string; visibleTopicIds?: string[] };
 export type Stage = { id: string; name: string; type: string; order: number; topicId?: string | null; topic?: { id: string; name: string } | null; _count?: { leads: number } };
 export type Channel = { id: string; name: string; externalId: string };
-export type Topic = { id: string; name: string; sortOrder: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; welcomeImageUrls?: string[] | null; addressText?: string | null };
+export type Topic = { id: string; name: string; sortOrder: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; welcomeImageUrls?: string[] | null; welcomeDocumentUrls?: string[] | null; addressText?: string | null };
 export type Lead = {
   id: string;
   stageId: string;
@@ -126,9 +126,9 @@ export const quickReplies = {
 
 export const topics = {
   list: () => api<Topic[]>('/topics'),
-  create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; welcomeImageUrls?: string[]; addressText?: string | null }) =>
+  create: (data: { name: string; sortOrder?: number; scenarioText?: string; mediaUrl?: string; welcomeVoiceUrl?: string; welcomeImageUrl?: string; welcomeImageUrls?: string[]; welcomeDocumentUrls?: string[]; addressText?: string | null }) =>
     api<Topic>('/topics', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; welcomeImageUrls?: string[] | null; addressText?: string | null }) =>
+  update: (id: string, data: { name?: string; sortOrder?: number; scenarioText?: string | null; mediaUrl?: string | null; welcomeVoiceUrl?: string | null; welcomeImageUrl?: string | null; welcomeImageUrls?: string[] | null; welcomeDocumentUrls?: string[] | null; addressText?: string | null }) =>
     api<Topic>(`/topics/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) => api<void>(`/topics/${id}`, { method: 'DELETE' }),
 };
