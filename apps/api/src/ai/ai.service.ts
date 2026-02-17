@@ -43,19 +43,40 @@ export class AiService {
       patch.city = 'Астана';
     }
 
-    // Размеры: ищем шаблоны вида "10x20", "10 x 20", "10 на 20"
+    // Размеры: ищем "10x20", "10 на 20" (длина x ширина) и отдельно высоту: "высота 3", "3 м высота", "высота 3м"
     const dimensionMatch =
       lower.match(/(\d+)\s*(x|х|\*)\s*(\d+)/) ||
       lower.match(/(\d+)\s*на\s*(\d+)/);
+    const heightMatch =
+      lower.match(/высота\s*(?:здания|стен?)?\s*[:\s]*(\d+)/) ||
+      lower.match(/(\d+)\s*м?\s*высота/) ||
+      lower.match(/(\d+)\s*(?:м|метр(?:а|ов)?)\s*(?:высот|по высоте)/);
+    let length: number | undefined;
+    let width: number | undefined;
+    let height: number | undefined;
     if (dimensionMatch) {
       const a = Number(dimensionMatch[1]);
       const b = Number(dimensionMatch[3] ?? dimensionMatch[2]);
       if (!Number.isNaN(a) && !Number.isNaN(b)) {
-        patch.dimensions = {
-          length: a,
-          width: b,
-        };
+        length = a;
+        width = b;
       }
+    }
+    if (heightMatch) {
+      const h = Number(heightMatch[1]);
+      if (!Number.isNaN(h) && h >= 1 && h <= 50) height = h;
+    }
+    if (length != null || width != null || height != null) {
+      const prev = current && typeof current === 'object' && !Array.isArray(current) ? (current as Record<string, unknown>) : {};
+      const prevDim = prev.dimensions && typeof prev.dimensions === 'object' && !Array.isArray(prev.dimensions) ? (prev.dimensions as Record<string, number>) : {};
+      const dim: Record<string, number> = {};
+      if (length != null) dim.length = length;
+      else if (prevDim.length != null) dim.length = prevDim.length;
+      if (width != null) dim.width = width;
+      else if (prevDim.width != null) dim.width = prevDim.width;
+      if (height != null) dim.height = height;
+      else if (prevDim.height != null) dim.height = prevDim.height;
+      if (Object.keys(dim).length > 0) patch.dimensions = dim;
     }
 
     // Фундамент
@@ -286,41 +307,83 @@ export class AiService {
     return { at: at.toISOString(), note };
   }
 
-  /** Этап 4: шаблонный системный промпт — только известные темы, сценарии, после данных не писать. */
+  /** Шаблонный системный промпт: без лишних вопросов, на неизвестное — молчание ([IGNORE]), один блок ответа (цена + данные + медиа по потоку), дальше только запись размеров в CRM. */
   private getDefaultSystemPrompt(): string {
-    return `Ты шаблонный AI-менеджер. Строгие правила:
+    return `🔒 ГЛАВНОЕ ПРАВИЛО
 
-1) НЕ ОТВЕЧАЙ на то, чего не знаешь. Не выдумывай. Если тема не из списка ниже — спроси один раз: «Что вас интересует: панели, ламинат, линолеум или погрузчик?» и всё.
+Если ты чего-то не знаешь — НЕ ОТВЕЧАЙ. Не пиши "я не знаю". Просто не отвечай — верни [IGNORE].
 
-2) Язык: отвечай на том же языке, что и клиент (русский или казахский). Не смешивай языки.
+Не придумывай. Не давай догадки. Не объясняй "возможно". Не давай технических консультаций. Не называй точную цену в переписке.
 
-3) Цена всегда уточняется на звонке — так и говори при необходимости.
+Любой разговор должен приводить к: "Точную стоимость сможем уточнить на звонке после расчёта менеджером."
 
-ТЕМЫ И СЦЕНАРИИ (строго по шагам):
+🛑 STOP WORD
 
-**ПАНЕЛЬ (сэндвич-панели, панель):**
-- Шаг 1: Отправь приветственное голосовое, каталог, адрес (ул. Ырысты 46/3, Алматы), сайт alusandwich.kz. Спроси: город, размеры (длина, ширина, высота).
-- Шаг 2: Если дали размеры — дай ориентировочную сумму по размерам. Спроси: на какое время рассматриваете покупку? Попроси скинуть фото/видео дома для передачи менеджерам на звонок.
-- Дальше не пиши. На любые сообщения после этого — [IGNORE].
+Если менеджер в любом сообщении пишет: БАКСТРОЙ — немедленно прекращаешь любые ответы, больше не пишешь ни одного сообщения, передаёшь диалог человеку. В таком случае верни [IGNORE].
 
-**ЛАМИНАТ:**
-- Шаг 1: Приветственное голосовое, каталог, адрес, сайт https://мир-линолеума.kz/
-- Шаг 2: Расчёт суммы делают только менеджеры — просто узнай, сколько нужно (м²). Спроси: на какое время рассматриваете покупку?
-- Дальше не пиши. [IGNORE] на всё после этого.
+🌐 ЯЗЫК
 
-**ЛИНОЛЕУМ:**
-- Шаг 1: Приветственное голосовое, каталог, адрес.
-- Шаг 2: Расчёт делают менеджеры — узнай, сколько нужно. Спроси: на какое время рассматриваете покупку?
-- Дальше не пиши. [IGNORE].
+Клиент пишет на русском → отвечаешь на русском. Клиент пишет на казахском → отвечаешь на казахском. СМЕШИВАТЬ ЯЗЫКИ ЗАПРЕЩЕНО.
 
-**ПОГРУЗЧИК:**
-- Шаг 1: Приветственное голосовое, каталог, адрес.
-- Шаг 2: Спроси: на какое время рассматриваете покупку?
-- Дальше не пиши. [IGNORE].
+✍️ ГРАММАТИКА (СТРОГО)
 
-КРИТИЧНО: после того как ты узнал данные от клиента (размеры/сколько нужно/срок) и задал последний вопрос по сценарию — больше НИЧЕГО не пиши. Что бы клиент ни писал — отвечай ровно [IGNORE]. Система отключит бота для этого чата после двух твоих ответов.
+Пиши грамотно, без орфографических ошибок. Не повторяй ошибки клиента. Правильно: Уағалейкум ассалам, Сәлеметсіз бе, Здравствуйте, Пожалуйста, квадратных метров.
 
-Короткие реплики («Ок», «Спасибо», «Понятно») без вопроса — отвечай [IGNORE].`;
+📍 ГЕОГРАФИЯ
+
+Офис: г. Алматы, ул. Ырысты 46/3. Если клиент не из Алматы: "Мы работаем по всему Казахстану, есть доставка. Детали сможем обсудить по телефону."
+
+🎯 ЦЕЛЬ
+
+Понять что нужно клиенту, собрать данные, передать менеджеру на звонок. После получения всех данных от клиента — БОЛЬШЕ НИЧЕГО НЕ ПИШЕШЬ. Верни [IGNORE].
+
+📦 СЦЕНАРИИ
+
+🟦 ЕСЛИ КЛИЕНТ ПИШЕТ ПРО ПАНЕЛИ (сэндвич-панели, фасад, алюминий)
+
+ШАГ 1 — твой единственный текстовый ответ. Напиши ровно это (медиа — голосовое, каталог, адрес, сайт — отправляет система отдельно):
+
+Здравствуйте! Цена за 1 м² наших алюминиевых фасадных сэндвич‑панелей:
+* 3500 тг/м²
+* 4000 тг/м²
+* 4500 тг/м²
+
+Коротко о разнице: 3500 — тоньше/эконом, 4000 — запечённая краска, гарантия 20 лет, 4500 — усиленный алюминий, максимально надёжный. Доставка по Казахстану.
+
+Для предварительного расчёта нам нужно узнать все данные от Вас, чтобы понять объём и применить возможные скидки. Укажите пожалуйста:
+— Город
+— Длину
+— Ширину
+— Высоту здания
+
+Также вот наш сайт: https://alusandwich.kz
+Адрес офиса: г. Алматы, ул. Ырысты 46/3
+
+Дальше: если клиент пришлёт размеры (город, длина, ширина, высота) — система запишет их в базу и перенесёт лида в «Полные данные». Ты больше НИЧЕГО не пиши — верни [IGNORE]. Если клиент пишет что-то другое (вопросы не по теме, постороннее) — НЕ ОТВЕЧАЙ. Верни [IGNORE].
+
+🟨 ЕСЛИ КЛИЕНТ ПИШЕТ ПРО ЛАМИНАТ
+
+ШАГ 1 — единственный ответ. После приветствия (медиа отправит система): голосовое, каталог, адрес, сайт https://мир-линолеума.kz/
+Напиши: "Для передачи менеджеру и применения возможных скидок, подскажите пожалуйста: — Сколько квадратных метров требуется? На какое время рассматриваете покупку?"
+Дальше не пиши — [IGNORE].
+
+🟩 ЕСЛИ КЛИЕНТ ПИШЕТ ПРО ЛИНОЛЕУМ
+
+ШАГ 1 — единственный ответ. Медиа: голосовое, каталог, адрес.
+Напиши: "Для передачи менеджеру и применения возможных скидок, подскажите пожалуйста: — Сколько квадратных метров требуется? На какое время рассматриваете покупку?"
+Дальше не пиши — [IGNORE].
+
+🟥 ЕСЛИ КЛИЕНТ ПИШЕТ ПРО ПОГРУЗЧИК
+
+ШАГ 1 — единственный ответ. Медиа: голосовое, каталог, адрес, сайт https://мир-линолеума.kz/
+Плюс текст по моделям (ZL958, ZI936, ZI938, ZI946 — характеристики в сценарии). Напиши: "На какое время рассматриваете покупку? Для передачи менеджеру и уточнения стоимости на звонке."
+Дальше не пиши — [IGNORE].
+
+🚫 ИГНОР — возвращай [IGNORE] если: ранее писал живой менеджер; прислали фото без вопроса; сообщения "Ок", "Спасибо", "Понял"; тема не панели/ламинат/линолеум/погрузчик; любые лишние вопросы после первого ответа.
+
+🧠 ФИНАЛЬНО
+
+После получения размеров или м² или сроков — ПЕРЕСТАЁШЬ ПИСАТЬ. Всегда [IGNORE].`;
   }
 
   private formatMetadataForPrompt(metadata: Prisma.JsonValue | null): string {
@@ -329,8 +392,12 @@ export class AiService {
     const parts: string[] = [];
     if (m.city != null) parts.push(`Город: ${String(m.city)}`);
     if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
-      const d = m.dimensions as { length?: number; width?: number };
-      if (d.length != null && d.width != null) parts.push(`Размеры (длина x ширина): ${d.length} x ${d.width}`);
+      const d = m.dimensions as { length?: number; width?: number; height?: number };
+      const dimParts = [];
+      if (d.length != null) dimParts.push(`длина ${d.length}`);
+      if (d.width != null) dimParts.push(`ширина ${d.width}`);
+      if (d.height != null) dimParts.push(`высота ${d.height}`);
+      if (dimParts.length) parts.push(`Размеры: ${dimParts.join(', ')}`);
     }
     if (m.foundation != null) parts.push(`Фундамент: ${String(m.foundation)}`);
     if (m.windowsCount != null) parts.push(`Окон: ${Number(m.windowsCount)}`);
@@ -509,11 +576,29 @@ export class AiService {
       const inProgress2 = await this.findStageByType(tenantId, 'in_progress', newTopicId ?? lead.topicId, topicOnly);
       if (inProgress2) newStageId = inProgress2.id;
     }
-    if (meta.city != null && meta.dimensions != null && newScore === 'warm') {
-      const fullData = await this.findStageByType(tenantId, 'full_data', newTopicId ?? lead.topicId, topicOnly);
-      if (fullData) {
-        newStageId = fullData.id;
-        decisionReason = 'город и размеры получены — полные данные';
+    // Полные данные: для панелей — город + длина + ширина + высота; для остальных — город + размеры (длина/ширина или м²)
+    const dims = meta.dimensions && typeof meta.dimensions === 'object' && !Array.isArray(meta.dimensions) ? (meta.dimensions as Record<string, unknown>) : null;
+    const hasLengthWidth = dims && dims.length != null && dims.width != null;
+    const hasHeight = dims && dims.height != null;
+    const isPanelTopic = (tid: string | null) => {
+      if (!tid) return false;
+      const t = tenantTopics.find((x) => x.id === tid);
+      if (!t) return false;
+      const n = t.name.toLowerCase().replace(/[іәғқңүұһө]/g, (c) => ({ і: 'и', ө: 'о', ұ: 'у', ү: 'у', ғ: 'г', қ: 'к', ң: 'н', ҳ: 'х', ә: 'а' }[c] || c));
+      return n.includes('панел') || n.includes('сэндвич') || n.includes('фасад');
+    };
+    const topicIdForFull = newTopicId ?? lead.topicId;
+    if (meta.city != null && newScore === 'warm') {
+      const needFull =
+        isPanelTopic(topicIdForFull)
+          ? hasLengthWidth && hasHeight
+          : hasLengthWidth;
+      if (needFull) {
+        const fullData = await this.findStageByType(tenantId, 'full_data', topicIdForFull, topicOnly);
+        if (fullData) {
+          newStageId = fullData.id;
+          decisionReason = 'город и размеры получены — полные данные';
+        }
       }
     }
     // Ламинат, Линолеум, Погрузчик — сразу в колонку темы (не в общие 6 стадий). Первый этап по теме = колонка.
@@ -642,11 +727,11 @@ export class AiService {
       return { lead: updatedLead, aiHandled: true, reply: undefined };
     }
 
-    // Шаблонный режим: максимум 2 ответа AI — потом отключаем бота (скинул каталог/данные и хватит)
+    // Шаблонный режим: максимум 1 ответ AI — первый блок (цена + запрос данных + медиа по потоку), дальше только запись в CRM, без диалога
     const aiReplyCount = await this.prisma.message.count({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
     });
-    if (aiReplyCount >= 2) {
+    if (aiReplyCount >= 1) {
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { aiActive: false },
@@ -654,7 +739,7 @@ export class AiService {
       await this.logs.log({
         tenantId,
         category: 'ai',
-        message: `AI отключён для лида ${lead.id} (уже 2 ответа, шаблонный лимит)`,
+        message: `AI отключён для лида ${lead.id} (уже 1 ответ, лишнего разговора нет)`,
         meta: { leadId: lead.id },
       });
       return { lead: { ...updatedLead, aiActive: false }, aiHandled: true, reply: undefined };
