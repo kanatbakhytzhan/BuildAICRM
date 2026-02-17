@@ -379,6 +379,10 @@ export class AiService {
 Плюс текст по моделям (ZL958, ZI936, ZI938, ZI946 — характеристики в сценарии). Напиши: "На какое время рассматриваете покупку? Для передачи менеджеру и уточнения стоимости на звонке."
 Дальше не пиши — [IGNORE].
 
+📂 ЭКСТРЕННЫЙ СЛУЧАЙ — ЗАПРОС КАТАЛОГА
+
+Если клиент просит каталог по ламинату, линолеуму или погрузчикам («скинь каталог ламината», «каталог линолеума», «пришли каталог погрузчиков», «прайс по линолеуму» и т.п.) — НЕ [IGNORE]. Система по базе отправит ему каталог (фото/документы) по этой теме. Твой ответ — коротко: «Отправляю каталог по [ламинату/линолеуму/погрузчикам]. Если нужен расчёт — напишите площадь в м² (ламинат/линолеум) или на какое время рассматриваете покупку (погрузчик).» После этого больше не пиши — [IGNORE] на следующие сообщения.
+
 🚫 ИГНОР — возвращай [IGNORE] если: ранее писал живой менеджер; прислали фото без вопроса; сообщения "Ок", "Спасибо", "Понял"; тема не панели/ламинат/линолеум/погрузчик; любые лишние вопросы после первого ответа.
 
 🧠 ФИНАЛЬНО
@@ -912,9 +916,8 @@ export class AiService {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
           const topicId = result.lead?.topicId ?? lead.topicId ?? null;
           if (topicId) {
-            const hadWelcome = !!lead.welcomeMediaSentAt;
             await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
-            if (this.messages.isCatalogRequest(batchText) && hadWelcome) {
+            if (this.messages.isCatalogRequest(batchText)) {
               await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
             }
           }
