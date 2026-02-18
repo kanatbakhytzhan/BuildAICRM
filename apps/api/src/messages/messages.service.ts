@@ -101,7 +101,7 @@ export class MessagesService {
       data.source === MessageSource.human &&
       data.mediaUrl?.trim()
     ) {
-      await this.sendMediaToLead(tenantId, lead.id, data.mediaUrl.trim(), 'audio');
+      await this.sendMediaToLead(tenantId, lead.id, data.mediaUrl.trim(), 'audio', '', MessageSource.human);
     }
 
     // Отправить исходящее текстовое сообщение в WhatsApp
@@ -175,13 +175,14 @@ export class MessagesService {
     }
   }
 
-  /** Отправить медиа лиду в WhatsApp через ChatFlow: send-audio, send-image, send-doc (официальные GET-эндпоинты). */
+  /** Отправить медиа лиду в WhatsApp и сохранить в чат CRM (исходящее сообщение). source: ai по умолчанию; human — не создаём запись (уже создана в createForLead). */
   async sendMediaToLead(
     tenantId: string,
     leadId: string,
     mediaUrl: string,
     type: 'audio' | 'image' | 'document',
     caption = '',
+    source: MessageSource = MessageSource.ai,
   ): Promise<boolean> {
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
@@ -295,7 +296,19 @@ export class MessagesService {
       } catch {
         parsed = {};
       }
-      if (parsed?.success === true) return true;
+      if (parsed?.success === true) {
+        if (source === MessageSource.ai) {
+          const body =
+            type === 'audio' ? '🎵 Голосовое сообщение' : type === 'image' ? '🖼 Фото каталога' : '📎 Документ';
+          await this.create(leadId, {
+            source: MessageSource.ai,
+            direction: MessageDirection.out,
+            body,
+            mediaUrl: mediaUrl.trim(),
+          });
+        }
+        return true;
+      }
 
       // Повтор при "Failed to fetch stream" (таймаут на стороне ChatFlow)
       if ((type === 'image' || type === 'document') && String(parsed?.message ?? '').includes('Failed to fetch stream')) {
@@ -307,7 +320,19 @@ export class MessagesService {
         } catch {
           retryParsed = {};
         }
-        if (retryParsed?.success === true) return true;
+        if (retryParsed?.success === true) {
+          if (source === MessageSource.ai) {
+            const body =
+              type === 'audio' ? '🎵 Голосовое сообщение' : type === 'image' ? '🖼 Фото каталога' : '📎 Документ';
+            await this.create(leadId, {
+              source: MessageSource.ai,
+              direction: MessageDirection.out,
+              body,
+              mediaUrl: mediaUrl.trim(),
+            });
+          }
+          return true;
+        }
       }
 
       this.logger.warn(
