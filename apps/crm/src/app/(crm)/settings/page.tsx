@@ -98,10 +98,45 @@ export default function SettingsPage() {
         <p style={{ margin: '0 0 1rem', fontSize: 13, color: 'var(--text-muted)' }}>
           Категории для лидов (панели, ламинат, линолеум и т.д.). У менеджера можно ограничить видимость по темам.
         </p>
+        <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-muted)' }}>Порядок тем задаёт, какая тема подставляется по умолчанию при приветствии (первая в списке).</p>
         <ul style={{ margin: 0, paddingLeft: '1.25rem', marginBottom: '1rem' }}>
-          {topicsList.map((t) => (
+          {topicsList.map((t, index) => (
             <li key={t.id} style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 500 }}>{t.name}</span>
+              <button
+                type="button"
+                title="Поднять выше"
+                disabled={index === 0}
+                onClick={() => {
+                  const prev = topicsList[index - 1];
+                  if (!prev) return;
+                  setSaving(true);
+                  Promise.all([
+                    topics.update(t.id, { sortOrder: prev.sortOrder }),
+                    topics.update(prev.id, { sortOrder: t.sortOrder }),
+                  ]).then(loadAll).catch((e) => setError(e.message)).finally(() => setSaving(false));
+                }}
+                style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: index === 0 ? 'not-allowed' : 'pointer', opacity: index === 0 ? 0.5, fontSize: 14 }}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                title="Опустить ниже"
+                disabled={index === topicsList.length - 1}
+                onClick={() => {
+                  const next = topicsList[index + 1];
+                  if (!next) return;
+                  setSaving(true);
+                  Promise.all([
+                    topics.update(t.id, { sortOrder: next.sortOrder }),
+                    topics.update(next.id, { sortOrder: t.sortOrder }),
+                  ]).then(loadAll).catch((e) => setError(e.message)).finally(() => setSaving(false));
+                }}
+                style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: index === topicsList.length - 1 ? 'not-allowed' : 'pointer', opacity: index === topicsList.length - 1 ? 0.5 : 1, fontSize: 14 }}
+              >
+                ↓
+              </button>
+              <span style={{ fontWeight: 500, minWidth: 100 }}>{t.name}</span>
               <button type="button" onClick={() => {
                 setEditTopic(t);
                 setEditTopicName(t.name);
