@@ -467,10 +467,21 @@ export class WebhooksController {
           text: bodyToSave,
           skipSaveIncoming: true,
         });
-        const topicId = result.lead?.topicId ?? lead.topicId ?? null;
-        if (topicId && result.reply != null && result.reply !== '') {
-          await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
-          await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+        const topicFromLead = result.lead?.topicId ?? lead.topicId;
+        const firstTopic = await this.prisma.tenantTopic.findFirst({
+          where: { tenantId },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true },
+        });
+        const topicId = topicFromLead ?? firstTopic?.id ?? null;
+        if (topicId) {
+          const hasReply = result.reply != null && result.reply !== '';
+          if (hasReply) {
+            await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
+            await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+          } else if (this.messages.isCatalogRequest(bodyToSave)) {
+            await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+          }
         }
         return {
           received: true,

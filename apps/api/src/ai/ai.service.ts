@@ -562,6 +562,10 @@ export class AiService {
         if (DEDICATED_TOPICS.some((d) => nameNorm.includes(d) || d.includes(nameNorm))) newTopicNameNorm = nameNorm;
       }
     }
+    // Если тема по тексту не определилась — берём первую тему тенанта (обычно «Панели»), чтобы всегда отправлять голос+каталог
+    if (newTopicId == null && tenantTopics.length > 0) {
+      newTopicId = tenantTopics[0].id;
+    }
     const topicOnly = newTopicNameNorm != null; // Ламинат/Линолеум/Погрузчик — только тематические этапы
     if (lower.includes('не интересно') || lower.includes('отказ') || lower.includes('не актуально')) {
       newScore = 'cold';
@@ -914,20 +918,27 @@ export class AiService {
       });
       if (!batchText.trim()) continue;
       try {
-        // Текст от AI (приветствие + ответ)
         const result = await this.handleFakeIncoming({
           tenantId: lead.tenantId,
           leadId: lead.id,
           text: batchText,
           skipSaveIncoming: true,
         });
+        const topicFromLead = result.lead?.topicId ?? lead.topicId;
+        const firstTopic = await this.prisma.tenantTopic.findFirst({
+          where: { tenantId: lead.tenantId },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true },
+        });
+        const topicId = topicFromLead ?? firstTopic?.id ?? null;
         if (result.reply) {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
-          const topicId = result.lead?.topicId ?? lead.topicId ?? null;
           if (topicId) {
             await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
             await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
           }
+        } else if (topicId && this.messages.isCatalogRequest(batchText)) {
+          await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
         }
       } catch (err) {
         await this.logs.log({
