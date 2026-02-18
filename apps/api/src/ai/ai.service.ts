@@ -934,11 +934,48 @@ export class AiService {
         if (result.reply) {
           await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
           if (topicId) {
-            await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
-            await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
+            try {
+              await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
+              await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
+              await this.logs.log({
+                tenantId: lead.tenantId,
+                category: 'ai',
+                message: 'Крон: стартовый пакет (голос + каталог) отправлен',
+                meta: { leadId: lead.id, topicId },
+              });
+            } catch (err) {
+              await this.logs.log({
+                tenantId: lead.tenantId,
+                category: 'ai',
+                message: `Крон: ошибка отправки медиа — ${(err as Error).message}`,
+                meta: { leadId: lead.id, topicId },
+              });
+            }
+          } else {
+            await this.logs.log({
+              tenantId: lead.tenantId,
+              category: 'ai',
+              message: 'Крон: topicId нет, голос/каталог не отправлены',
+              meta: { leadId: lead.id },
+            });
           }
         } else if (topicId && this.messages.isCatalogRequest(batchText)) {
-          await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
+          try {
+            await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
+            await this.logs.log({
+              tenantId: lead.tenantId,
+              category: 'ai',
+              message: 'Крон: каталог по запросу отправлен',
+              meta: { leadId: lead.id },
+            });
+          } catch (err) {
+            await this.logs.log({
+              tenantId: lead.tenantId,
+              category: 'ai',
+              message: `Крон: ошибка отправки каталога — ${(err as Error).message}`,
+              meta: { leadId: lead.id },
+            });
+          }
         }
       } catch (err) {
         await this.logs.log({

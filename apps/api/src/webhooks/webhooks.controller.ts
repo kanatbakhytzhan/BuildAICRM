@@ -453,8 +453,13 @@ export class WebhooksController {
       lead = { ...lead, aiActive: false };
     }
 
-    // Режим «приветствие»: не планируем крон, сразу генерируем ответ и возвращаем reply + URL медиа. Отправку делает ChatFlow (текст через send-text, медиа — своими узлами).
     const isWelcome = query.welcome === true || query.welcome === '1' || body.welcome === true || body.welcome === '1';
+    await this.logs.log({
+      tenantId,
+      category: 'whatsapp',
+      message: isWelcome ? 'Вебхук: режим приветствия (welcome=1), сразу ответ + медиа' : 'Вебхук: режим отложенного ответа (cron через ~1 мин)',
+      meta: { leadId: lead.id, isWelcome, queryWelcome: query.welcome, bodyWelcome: body.welcome },
+    });
     if (isWelcome) {
       const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
       const hasHumanReplied = await this.prisma.message.findFirst({
@@ -474,14 +479,73 @@ export class WebhooksController {
           select: { id: true },
         });
         const topicId = topicFromLead ?? firstTopic?.id ?? null;
+        const hasReply = result.reply != null && result.reply !== '';
         if (topicId) {
-          const hasReply = result.reply != null && result.reply !== '';
+          const topic = await this.prisma.tenantTopic.findFirst({
+            where: { id: topicId, tenantId },
+            select: { name: true, welcomeVoiceUrl: true, welcomeImageUrl: true, welcomeImageUrls: true, welcomeDocumentUrls: true },
+          });
+          const hasVoice = !!topic?.welcomeVoiceUrl?.trim();
+          const hasCatalogImages = !!(topic?.welcomeImageUrl?.trim() || (Array.isArray(topic?.welcomeImageUrls) && topic.welcomeImageUrls.some((u) => typeof u === 'string' && u.trim())));
+          const hasCatalogDocs = Array.isArray(topic?.welcomeDocumentUrls) && topic.welcomeDocumentUrls.some((u) => typeof u === 'string' && u.trim());
+          await this.logs.log({
+            tenantId,
+            category: 'ai',
+            message: 'Стартовый пакет: голос и каталог',
+            meta: {
+              leadId: lead.id,
+              topicId,
+              topicName: topic?.name,
+              hasReply,
+              hasVoice,
+              hasCatalogImages,
+              hasCatalogDocs,
+              willSendMedia: hasReply || this.messages.isCatalogRequest(bodyToSave),
+            },
+          });
           if (hasReply) {
-            await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
-            await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+            try {
+              await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
+              await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+              await this.logs.log({
+                tenantId,
+                category: 'ai',
+                message: 'Стартовый пакет: вызов sendWelcomeMedia + sendCatalog выполнен',
+                meta: { leadId: lead.id },
+              });
+            } catch (err) {
+              await this.logs.log({
+                tenantId,
+                category: 'ai',
+                message: `Стартовый пакет: ошибка отправки медиа — ${(err as Error).message}`,
+                meta: { leadId: lead.id, error: String((err as Error).stack) },
+              });
+            }
           } else if (this.messages.isCatalogRequest(bodyToSave)) {
-            await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+            try {
+              await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
+              await this.logs.log({
+                tenantId,
+                category: 'ai',
+                message: 'Запрос каталога: sendCatalog выполнен',
+                meta: { leadId: lead.id },
+              });
+            } catch (err) {
+              await this.logs.log({
+                tenantId,
+                category: 'ai',
+                message: `Запрос каталога: ошибка — ${(err as Error).message}`,
+                meta: { leadId: lead.id },
+              });
+            }
           }
+        } else {
+          await this.logs.log({
+            tenantId,
+            category: 'ai',
+            message: 'Стартовый пакет: topicId нет, медиа не отправляются (нет тем в настройках?)',
+            meta: { leadId: lead.id },
+          });
         }
         return {
           received: true,
