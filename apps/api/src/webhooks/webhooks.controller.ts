@@ -506,11 +506,10 @@ export class WebhooksController {
           if (hasReply) {
             try {
               await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
-              await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
               await this.logs.log({
                 tenantId,
                 category: 'ai',
-                message: 'Стартовый пакет: вызов sendWelcomeMedia + sendCatalog выполнен',
+                message: 'Стартовый пакет: sendWelcomeMedia выполнен (голос + фото в одном вызове)',
                 meta: { leadId: lead.id },
               });
             } catch (err) {

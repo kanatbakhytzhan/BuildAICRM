@@ -936,11 +936,10 @@ export class AiService {
           if (topicId) {
             try {
               await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);
-              await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
               await this.logs.log({
                 tenantId: lead.tenantId,
                 category: 'ai',
-                message: 'Крон: стартовый пакет (голос + каталог) отправлен',
+                message: 'Крон: стартовый пакет (голос + фото) отправлен',
                 meta: { leadId: lead.id, topicId },
               });
             } catch (err) {

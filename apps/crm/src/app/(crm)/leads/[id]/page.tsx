@@ -585,10 +585,27 @@ export default function LeadDetailPage() {
                       }}
                     >
                       {m.mediaUrl ? (
-                        <VoiceMessagePlayer
-                          streamUrl={`${apiBaseUrl}/leads/${lead.id}/messages/stream-media?url=${encodeURIComponent(m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl)}`}
-                          direction={m.direction}
-                        />
+                        (m.body?.includes('Фото') || m.body?.includes('🖼')) ? (
+                          <img
+                            src={`${apiBaseUrl}/leads/${lead.id}/messages/stream-media?url=${encodeURIComponent(m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl)}`}
+                            alt="Фото каталога"
+                            style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, display: 'block' }}
+                          />
+                        ) : (m.body?.includes('Документ') || m.body?.includes('📎')) ? (
+                          <a
+                            href={`${apiBaseUrl}/leads/${lead.id}/messages/stream-media?url=${encodeURIComponent(m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'inherit', textDecoration: 'underline' }}
+                          >
+                            📎 Документ
+                          </a>
+                        ) : (
+                          <VoiceMessagePlayer
+                            streamUrl={`${apiBaseUrl}/leads/${lead.id}/messages/stream-media?url=${encodeURIComponent(m.mediaUrl.startsWith('http') ? m.mediaUrl : apiBaseUrl + m.mediaUrl)}`}
+                            direction={m.direction}
+                          />
+                        )
                       ) : (
                         m.body
                       )}
