@@ -115,9 +115,9 @@ export default function SettingsPage() {
                     topics.update(prev.id, { sortOrder: t.sortOrder }),
                   ]).then(loadAll).catch((e) => setError(e.message)).finally(() => setSaving(false));
                 }}
-                style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: index === 0 ? 'not-allowed' : 'pointer', opacity: index === 0 ? 0.5, fontSize: 14 }}
+                style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: index === 0 ? 'not-allowed' : 'pointer', opacity: index === 0 ? 0.5 : 1, fontSize: 14 }}
               >
-                ↑
+                {'\u2191'}
               </button>
               <button
                 type="button"
@@ -134,7 +134,7 @@ export default function SettingsPage() {
                 }}
                 style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--surface)', cursor: index === topicsList.length - 1 ? 'not-allowed' : 'pointer', opacity: index === topicsList.length - 1 ? 0.5 : 1, fontSize: 14 }}
               >
-                ↓
+                {'\u2193'}
               </button>
               <span style={{ fontWeight: 500, minWidth: 100 }}>{t.name}</span>
               <button type="button" onClick={() => {
