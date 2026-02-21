@@ -467,8 +467,10 @@ export default function LeadDetailPage() {
             const items: { label: string; value: string }[] = [];
             if (m.city != null) items.push({ label: 'Город', value: String(m.city) });
             if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
-              const d = m.dimensions as { length?: number; width?: number };
-              if (d.length != null && d.width != null) items.push({ label: 'Размеры', value: `${d.length} × ${d.width} м` });
+              const d = m.dimensions as { length?: number; width?: number; height?: number };
+              const dimParts = [d.length, d.width].filter((x) => x != null);
+              if (d.height != null) dimParts.push(d.height);
+              if (dimParts.length) items.push({ label: 'Размеры', value: dimParts.join(' × ') + ' м' });
             }
             if (m.foundation != null) items.push({ label: 'Фундамент', value: String(m.foundation) });
             if (m.windowsCount != null) items.push({ label: 'Окон', value: String(m.windowsCount) });
