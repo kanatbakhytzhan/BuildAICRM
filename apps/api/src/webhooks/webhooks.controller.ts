@@ -86,7 +86,7 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
     if (phone === undefined && msg.from !== undefined) phone = String(msg.from);
   }
 
-  // Формат Meta WhatsApp Cloud API: entry[0].changes[0].value.messages[0]
+  // Формат Meta WhatsApp Cloud API: entry[0].changes[0].value.messages[0] (в т.ч. чаты с таргета)
   const entry = body.entry as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(entry) && entry.length > 0) {
     const changes = entry[0]?.changes as Array<Record<string, unknown>> | undefined;
@@ -96,6 +96,14 @@ function parseChatFlowBody(body: Record<string, unknown>): ParsedIncoming | null
       const first = messages[0];
       const textObj = first?.text as Record<string, unknown> | undefined;
       if (text === undefined && textObj && typeof textObj.body === 'string') text = textObj.body;
+      // Ad-initiated / button reply: interactive.button_reply.title или interactive.list_reply.title
+      const interactive = first?.interactive as Record<string, unknown> | undefined;
+      if (text === undefined && interactive && typeof interactive === 'object') {
+        const btn = interactive.button_reply as Record<string, unknown> | undefined;
+        const list = interactive.list_reply as Record<string, unknown> | undefined;
+        if (btn && typeof btn.title === 'string' && btn.title.trim()) text = btn.title.trim();
+        else if (list && typeof list.title === 'string' && list.title.trim()) text = list.title.trim();
+      }
       if (text === undefined) text = extractTextRecursive(first);
       if (phone === undefined && first?.from !== undefined) phone = String(first.from);
       const contacts = value?.contacts as Array<Record<string, unknown>> | undefined;
