@@ -418,6 +418,17 @@ export class MessagesService {
     await Promise.all([...imagePromises, ...docPromises]);
   }
 
+  /** Запрос подробностей: «Можно узнать об этом подробнее?», «Расскажите подробнее» — отправляем голос + каталог */
+  isRequestForMoreInfo(text: string): boolean {
+    const t = (text ?? '').toLowerCase().replace(/\s+/g, ' ');
+    const phrases = [
+      'подробнее', 'узнать об этом', 'узнать подробнее', 'расскажите подробнее',
+      'расскажите об этом', 'можно узнать', 'хочу узнать', 'интересует подробнее',
+      'толығырақ', 'толығымен', 'бұл туралы',
+    ];
+    return phrases.some((p) => t.includes(p));
+  }
+
   /** Запрос каталога/фото: «скинь каталог», «пришли фото», «прайс» и т.д. */
   isCatalogRequest(text: string): boolean {
     const t = (text ?? '').toLowerCase().replace(/\s+/g, ' ');

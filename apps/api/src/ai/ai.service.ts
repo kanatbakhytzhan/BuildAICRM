@@ -378,11 +378,13 @@ export class AiService {
 
 Біздің мекенжайымыз: Алматы қ., Ырысты көшесі 46/3а
 
-🟦 ПАНЕЛИ: после стартового пакета у тебя одна попытка — если клиент пришлёт размеры (город, длина, ширина, высота), запроси при необходимости окна/двери, сделай ориентировочный расчёт суммы и напиши: «Точную стоимость уточним на звонке после расчёта менеджером.» Дальше [IGNORE].
+📋 ЗАПРОС ПОДРОБНЕЕ: если клиент пишет «Здравствуйте! Можно узнать об этом подробнее?», «Расскажите подробнее», «Узнать об этом» и т.п. — верни стартовый пакет (RU или KZ по языку клиента). НЕ [IGNORE]. Система отправит голос и каталог.
 
-🟨🟩🟥 ЛАМИНАТ / ЛИНОЛЕУМ / ПОГРУЗЧИК: после стартового пакета только сбор данных (м², срок и т.д.). Записываешь в базу, дальше ничего не спрашиваешь. [IGNORE].
+🟦 ПАНЕЛИ — ТОЛЬКО РАЗМЕРЫ: если клиент пишет РАЗМЕРЫ дома (город + длина + ширина + высота) — посчитай ориентировочную стоимость: периметр = (длина + ширина) × 2, площадь стен = периметр × высота, материал = площадь × 3500 ₸, монтаж = площадь × 4000 ₸. Напиши кратко: «Предварительный расчёт: материал ~X ₸, монтаж от Y ₸. Точную стоимость уточним на звонке.» И ВСЁ. Дальше [IGNORE]. ТОЛЬКО когда он дал размеры — пиши расчёт. Лишнего ничего не пиши.
 
-📥 ЕСЛИ ПОЛУЧЕНЫ РАЗМЕРЫ (город + длина + ширина + высота) → данные извлекаются, запись в CRM. После записи: [IGNORE].
+🟨🟩🟥 ЛАМИНАТ / ЛИНОЛЕУМ / ПОГРУЗЧИК: после стартового пакета только сбор данных (м², срок). Записываешь в базу, дальше [IGNORE].
+
+📥 ЕСЛИ ПОЛУЧЕНЫ РАЗМЕРЫ (город + длина + ширина + высота) → данные в CRM. После записи: [IGNORE].
 
 🚨 EMERGENCY CATALOG: если клиент запрашивает каталог ламината / линолеума / погрузчиков → определи язык, система отправит каталог из базы. Без текста, без пояснений. После отправки — [IGNORE].
 
@@ -744,11 +746,12 @@ export class AiService {
       return { lead: updatedLead, aiHandled: true, reply: undefined };
     }
 
-    // Шаблонный режим: максимум 1 ответ AI — первый блок (цена + запрос данных + медиа по потоку), дальше только запись в CRM, без диалога
+    // Шаблонный режим: максимум 1 ответ AI — первый блок. Исключение: «подробнее» / «узнать об этом» — ещё раз голос + каталог
     const aiReplyCount = await this.prisma.message.count({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
     });
-    if (aiReplyCount >= 1) {
+    const isMoreInfo = this.messages.isRequestForMoreInfo(text);
+    if (aiReplyCount >= 1 && !isMoreInfo) {
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { aiActive: false },
@@ -931,8 +934,8 @@ export class AiService {
           select: { id: true },
         });
         const topicId = topicFromLead ?? firstTopic?.id ?? null;
-        if (result.reply) {
-          await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
+        if (result.reply || this.messages.isRequestForMoreInfo(batchText)) {
+          if (result.reply) await this.messages.sendToLead(lead.tenantId, lead.id, result.reply);
           if (topicId) {
             try {
               await this.messages.sendWelcomeMediaForTopic(lead.tenantId, lead.id, topicId);

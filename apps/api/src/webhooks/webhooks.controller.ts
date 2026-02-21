@@ -503,7 +503,7 @@ export class WebhooksController {
               willSendMedia: hasReply || this.messages.isCatalogRequest(bodyToSave),
             },
           });
-          if (hasReply) {
+          if (hasReply || this.messages.isRequestForMoreInfo(bodyToSave)) {
             try {
               await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
               await this.logs.log({
@@ -520,7 +520,8 @@ export class WebhooksController {
                 meta: { leadId: lead.id, error: String((err as Error).stack) },
               });
             }
-          } else if (this.messages.isCatalogRequest(bodyToSave)) {
+          }
+          if (!hasReply && this.messages.isCatalogRequest(bodyToSave)) {
             try {
               await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
               await this.logs.log({
