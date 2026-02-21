@@ -775,28 +775,7 @@ export class AiService {
       return { lead: updatedLead, aiHandled: true, reply: undefined };
     }
 
-    // Шаблонный режим: максимум 1 ответ AI. Исключения: «подробнее» → голос+каталог; размеры дома → ориентировочный расчёт
-    const aiReplyCount = await this.prisma.message.count({
-      where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
-    });
-    const isMoreInfo = this.messages.isRequestForMoreInfo(text);
-    const leadMeta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
-    const leadDims = leadMeta?.dimensions && typeof leadMeta.dimensions === 'object' && !Array.isArray(leadMeta.dimensions) ? (leadMeta.dimensions as Record<string, unknown>) : null;
-    const hasDimensionsForCalc = !!leadMeta?.city && !!(leadDims?.length && leadDims?.width && leadDims?.height);
-    if (aiReplyCount >= 1 && !isMoreInfo && !hasDimensionsForCalc) {
-      await this.prisma.lead.update({
-        where: { id: lead.id },
-        data: { aiActive: false },
-      });
-      await this.logs.log({
-        tenantId,
-        category: 'ai',
-        message: `AI отключён для лида ${lead.id} (уже 1 ответ, лишнего разговора нет)`,
-        meta: { leadId: lead.id },
-      });
-      return { lead: { ...updatedLead, aiActive: false }, aiHandled: true, reply: undefined };
-    }
-
+    // AI сам решает по каждому сообщению: ответить или [IGNORE]. Не отключаем AI по счётчику — важно отвечать на расчёты, «каталог ламината» и т.д.
     await this.messages.create(lead.id, {
       source: MessageSource.ai,
       direction: MessageDirection.out,
@@ -817,6 +796,7 @@ export class AiService {
     });
 
     // Schedule follow-up if enabled (не планируем, если клиент доработан и записан на звонок)
+    const leadMeta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
     const hasCallScheduled = leadMeta.suggestedCallAt != null || leadMeta.suggestedCallNote != null;
     const isWantsCall = updatedLead.stage?.type === 'wants_call';
     if (settings?.followUpEnabled && settings?.followUpMessage && !isWantsCall && !hasCallScheduled) {
