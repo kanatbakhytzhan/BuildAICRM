@@ -972,7 +972,9 @@ export class AiService {
               meta: { leadId: lead.id },
             });
           }
-        } else if (topicId && this.messages.isCatalogRequest(batchText)) {
+        }
+        // Запрос каталога — отправляем каталог по теме в любом случае (даже если AI ответил)
+        if (topicId && this.messages.isCatalogRequest(batchText)) {
           try {
             await this.messages.sendCatalogImagesForTopic(lead.tenantId, lead.id, topicId);
             await this.logs.log({

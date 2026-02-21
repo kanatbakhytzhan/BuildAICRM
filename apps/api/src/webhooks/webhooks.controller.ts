@@ -503,6 +503,7 @@ export class WebhooksController {
               willSendMedia: hasReply || this.messages.isCatalogRequest(bodyToSave),
             },
           });
+          // Голос + каталог при приветствии/подробнее. Отдельно — явный запрос каталога (ламинат/линолеум и т.д.) — всегда отправляем
           if (hasReply || this.messages.isRequestForMoreInfo(bodyToSave)) {
             try {
               await this.messages.sendWelcomeMediaForTopic(tenantId, lead.id, topicId);
@@ -521,7 +522,8 @@ export class WebhooksController {
               });
             }
           }
-          if (!hasReply && this.messages.isCatalogRequest(bodyToSave)) {
+          // Запрос каталога — отправляем каталог по теме, даже если AI ответил (AI может спрашивать не в тему по промпту клиента)
+          if (this.messages.isCatalogRequest(bodyToSave)) {
             try {
               await this.messages.sendCatalogImagesForTopic(tenantId, lead.id, topicId);
               await this.logs.log({
