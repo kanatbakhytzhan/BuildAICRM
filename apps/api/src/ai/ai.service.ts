@@ -43,10 +43,11 @@ export class AiService {
       patch.city = 'Астана';
     }
 
-    // Размеры: ищем "10x20", "10 на 20" (длина x ширина) и отдельно высоту: "высота 3", "3 м высота", "высота 3м"
+    // Размеры: "10x20", "10 на 20" (длина x ширина); "10м 8м 3м" / "10 м 8 м 3 м" (длина ширина высота); отдельно высота
     const dimensionMatch =
       lower.match(/(\d+)\s*(x|х|\*)\s*(\d+)/) ||
       lower.match(/(\d+)\s*на\s*(\d+)/);
+    const threeNumbersMatch = lower.match(/(\d+)\s*м?\s*[\s,]*(\d+)\s*м?\s*[\s,]*(\d+)\s*м?/);
     const heightMatch =
       lower.match(/высота\s*(?:здания|стен?)?\s*[:\s]*(\d+)/) ||
       lower.match(/(\d+)\s*м?\s*высота/) ||
@@ -62,7 +63,17 @@ export class AiService {
         width = b;
       }
     }
-    if (heightMatch) {
+    if (threeNumbersMatch) {
+      const a = Number(threeNumbersMatch[1]);
+      const b = Number(threeNumbersMatch[2]);
+      const c = Number(threeNumbersMatch[3]);
+      if (!Number.isNaN(a) && !Number.isNaN(b) && !Number.isNaN(c) && a >= 1 && a <= 100 && b >= 1 && b <= 100 && c >= 1 && c <= 50) {
+        length = length ?? a;
+        width = width ?? b;
+        height = height ?? c;
+      }
+    }
+    if (heightMatch && height == null) {
       const h = Number(heightMatch[1]);
       if (!Number.isNaN(h) && h >= 1 && h <= 50) height = h;
     }
@@ -746,12 +757,15 @@ export class AiService {
       return { lead: updatedLead, aiHandled: true, reply: undefined };
     }
 
-    // Шаблонный режим: максимум 1 ответ AI — первый блок. Исключение: «подробнее» / «узнать об этом» — ещё раз голос + каталог
+    // Шаблонный режим: максимум 1 ответ AI. Исключения: «подробнее» → голос+каталог; размеры дома → ориентировочный расчёт
     const aiReplyCount = await this.prisma.message.count({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
     });
     const isMoreInfo = this.messages.isRequestForMoreInfo(text);
-    if (aiReplyCount >= 1 && !isMoreInfo) {
+    const leadMeta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
+    const leadDims = leadMeta?.dimensions && typeof leadMeta.dimensions === 'object' && !Array.isArray(leadMeta.dimensions) ? (leadMeta.dimensions as Record<string, unknown>) : null;
+    const hasDimensionsForCalc = !!leadMeta?.city && !!(leadDims?.length && leadDims?.width && leadDims?.height);
+    if (aiReplyCount >= 1 && !isMoreInfo && !hasDimensionsForCalc) {
       await this.prisma.lead.update({
         where: { id: lead.id },
         data: { aiActive: false },
@@ -785,7 +799,6 @@ export class AiService {
     });
 
     // Schedule follow-up if enabled (не планируем, если клиент доработан и записан на звонок)
-    const leadMeta = (updatedLead.metadata ?? {}) as Record<string, unknown>;
     const hasCallScheduled = leadMeta.suggestedCallAt != null || leadMeta.suggestedCallNote != null;
     const isWantsCall = updatedLead.stage?.type === 'wants_call';
     if (settings?.followUpEnabled && settings?.followUpMessage && !isWantsCall && !hasCallScheduled) {
