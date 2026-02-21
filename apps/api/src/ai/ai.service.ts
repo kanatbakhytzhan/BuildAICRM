@@ -43,39 +43,51 @@ export class AiService {
       patch.city = 'Астана';
     }
 
-    // Размеры: "10x20", "10 на 20" (длина x ширина); "10м 8м 3м" / "10 м 8 м 3 м" (длина ширина высота); отдельно высота
+    const parseNum = (s: string) => {
+      const n = Number(String(s).replace(',', '.'));
+      return !Number.isNaN(n) ? n : undefined;
+    };
+    const isValidDim = (n: number, max = 100) => n >= 1 && n <= max;
+    const isValidHeight = (n: number) => n >= 1 && n <= 50;
+
+    // Размеры: разные форматы — люди пишут как хотят (текст, голос→транскрипт). Примеры:
+    // "10x20", "10 на 20" | "10м 8м 3м" | "8-11-3,5", "8/11/3.5", "8 11 3.5", "8, 11, 3,5"
     const dimensionMatch =
-      lower.match(/(\d+)\s*(x|х|\*)\s*(\d+)/) ||
-      lower.match(/(\d+)\s*на\s*(\d+)/);
-    const threeNumbersMatch = lower.match(/(\d+)\s*м?\s*[\s,]*(\d+)\s*м?\s*[\s,]*(\d+)\s*м?/);
+      lower.match(/(\d+(?:[.,]\d+)?)\s*(x|х|\*)\s*(\d+(?:[.,]\d+)?)/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s*на\s*(\d+(?:[.,]\d+)?)/);
+    const threeNumbersMatch =
+      lower.match(/(\d+(?:[.,]\d+)?)\s*м?\s*[\s,]*(\d+(?:[.,]\d+)?)\s*м?\s*[\s,]*(\d+(?:[.,]\d+)?)\s*м?/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s*[-/]\s*(\d+(?:[.,]\d+)?)\s*[-/]\s*(\d+(?:[.,]\d+)?)/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s*,\s*(\d+(?:[.,]\d+)?)\s*,\s*(\d+(?:[.,]\d+)?)/);
     const heightMatch =
-      lower.match(/высота\s*(?:здания|стен?)?\s*[:\s]*(\d+)/) ||
-      lower.match(/(\d+)\s*м?\s*высота/) ||
-      lower.match(/(\d+)\s*(?:м|метр(?:а|ов)?)\s*(?:высот|по высоте)/);
+      lower.match(/высота\s*(?:здания|стен?)?\s*[:\s]*(\d+(?:[.,]\d+)?)/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s*м?\s*высота/) ||
+      lower.match(/(\d+(?:[.,]\d+)?)\s*(?:м|метр(?:а|ов)?)\s*(?:высот|по высоте)/);
     let length: number | undefined;
     let width: number | undefined;
     let height: number | undefined;
     if (dimensionMatch) {
-      const a = Number(dimensionMatch[1]);
-      const b = Number(dimensionMatch[3] ?? dimensionMatch[2]);
-      if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      const a = parseNum(dimensionMatch[1]);
+      const b = parseNum(dimensionMatch[3] ?? dimensionMatch[2]);
+      if (a != null && b != null && isValidDim(a) && isValidDim(b)) {
         length = a;
         width = b;
       }
     }
     if (threeNumbersMatch) {
-      const a = Number(threeNumbersMatch[1]);
-      const b = Number(threeNumbersMatch[2]);
-      const c = Number(threeNumbersMatch[3]);
-      if (!Number.isNaN(a) && !Number.isNaN(b) && !Number.isNaN(c) && a >= 1 && a <= 100 && b >= 1 && b <= 100 && c >= 1 && c <= 50) {
+      const a = parseNum(threeNumbersMatch[1]);
+      const b = parseNum(threeNumbersMatch[2]);
+      const c = parseNum(threeNumbersMatch[3]);
+      if (a != null && b != null && c != null && isValidDim(a) && isValidDim(b) && isValidHeight(c)) {
         length = length ?? a;
         width = width ?? b;
         height = height ?? c;
       }
     }
     if (heightMatch && height == null) {
-      const h = Number(heightMatch[1]);
-      if (!Number.isNaN(h) && h >= 1 && h <= 50) height = h;
+      const h = parseNum(heightMatch[1]);
+      if (h != null && isValidHeight(h)) height = h;
     }
     if (length != null || width != null || height != null) {
       const prev = current && typeof current === 'object' && !Array.isArray(current) ? (current as Record<string, unknown>) : {};
@@ -101,20 +113,20 @@ export class AiService {
       }
     }
 
-    // Кол-во окон
-    const windowsMatch = lower.match(/(\d+)\s*(окн)/);
+    // Кол-во окон: "5 окон", "5 терезе" (голос/текст — люди пишут как хотят)
+    const windowsMatch = lower.match(/(\d+)\s*(окн|терезе|window)/);
     if (windowsMatch) {
       const count = Number(windowsMatch[1]);
-      if (!Number.isNaN(count)) {
+      if (!Number.isNaN(count) && count >= 0 && count <= 99) {
         patch.windowsCount = count;
       }
     }
 
-    // Кол-во дверей
-    const doorsMatch = lower.match(/(\d+)\s*(двер)/);
+    // Кол-во дверей: "2 двери", "2 есік"
+    const doorsMatch = lower.match(/(\d+)\s*(двер|есік|есик|door)/);
     if (doorsMatch) {
       const count = Number(doorsMatch[1]);
-      if (!Number.isNaN(count)) {
+      if (!Number.isNaN(count) && count >= 0 && count <= 99) {
         patch.doorsCount = count;
       }
     }
@@ -391,7 +403,7 @@ export class AiService {
 
 📋 ЗАПРОС ПОДРОБНЕЕ: если клиент пишет «Здравствуйте! Можно узнать об этом подробнее?», «Расскажите подробнее», «Узнать об этом» и т.п. — верни стартовый пакет (RU или KZ по языку клиента). НЕ [IGNORE]. Система отправит голос и каталог.
 
-🟦 ПАНЕЛИ — ТОЛЬКО РАЗМЕРЫ: если клиент пишет РАЗМЕРЫ дома (город + длина + ширина + высота) — посчитай ориентировочную стоимость. ФОРМУЛА ПЛОЩАДИ СТЕН (НЕ пола!): периметр = (длина + ширина) × 2, площадь стен = периметр × высота. Пример: (10+12)×2=44, 44×3=132 м². НЕ считай площадь как длина×ширина! Минус окна и двери из площади стен. Материал = чистая площадь × 3500 ₸, монтаж = чистая площадь × 4000 ₸. Если в данных уже дана «Площадь стен для расчёта» — используй её. Напиши кратко: «Предварительный расчёт: материал ~X ₸, монтаж от Y ₸. Точную стоимость уточним на звонке.» И ВСЁ. Дальше [IGNORE]. ТОЛЬКО когда он дал размеры — пиши расчёт. Лишнего ничего не пиши.
+🟦 ПАНЕЛИ — ТОЛЬКО РАЗМЕРЫ: клиент может писать размеры как угодно (текст, голос→транскрипт): «10x12x3», «8-11-3,5», «10м 8м 3м», «8 11 3.5» — всё это длина×ширина×высота. Если в CRM есть «Размеры» и «Площадь стен для расчёта» — используй их. ФОРМУЛА: периметр = (длина+ширина)×2, площадь стен = периметр×высота. НЕ длина×ширина! Пример: (8+11)×2=38, 38×3,5=133 м². Минус окна/двери. Материал = площадь × 3500 ₸, монтаж = площадь × 4000 ₸. Напиши кратко расчёт. Дальше [IGNORE]. Лишнего не пиши.
 
 🟨🟩🟥 ЛАМИНАТ / ЛИНОЛЕУМ / ПОГРУЗЧИК: после стартового пакета только сбор данных (м², срок). Записываешь в базу, дальше [IGNORE].
 
