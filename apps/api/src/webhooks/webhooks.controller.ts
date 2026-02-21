@@ -462,13 +462,19 @@ export class WebhooksController {
     }
 
     const isWelcome = query.welcome === true || query.welcome === '1' || body.welcome === true || body.welcome === '1';
+    // С таргета/рекламы ChatFlow часто не передаёт welcome=1. «Подробнее» на первом контакте — сразу стартовый пакет.
+    const incomingCount = await this.prisma.message.count({
+      where: { leadId: lead.id, direction: MessageDirection.in },
+    });
+    const isFirstContactMoreInfo = incomingCount <= 2 && this.messages.isRequestForMoreInfo(bodyToSave);
+    const treatAsWelcome = isWelcome || isFirstContactMoreInfo;
     await this.logs.log({
       tenantId,
       category: 'whatsapp',
-      message: isWelcome ? 'Вебхук: режим приветствия (welcome=1), сразу ответ + медиа' : 'Вебхук: режим отложенного ответа (cron через ~1 мин)',
-      meta: { leadId: lead.id, isWelcome, queryWelcome: query.welcome, bodyWelcome: body.welcome },
+      message: treatAsWelcome ? 'Вебхук: режим приветствия (сразу ответ + медиа)' : 'Вебхук: режим отложенного ответа (cron через ~1 мин)',
+      meta: { leadId: lead.id, isWelcome, isFirstContactMoreInfo, incomingCount, queryWelcome: query.welcome, bodyWelcome: body.welcome },
     });
-    if (isWelcome) {
+    if (treatAsWelcome) {
       const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
       const hasHumanReplied = await this.prisma.message.findFirst({
         where: { leadId: lead.id, source: MessageSource.human, direction: MessageDirection.out },
