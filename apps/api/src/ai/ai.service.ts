@@ -718,6 +718,25 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
+    // Не повторять один и тот же блок вопросов (Қала, Не қажет, м², уақыт, нөмір) — уже задавали
+    const lastOut = await this.prisma.message.findFirst({
+      where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
+      orderBy: { createdAt: 'desc' },
+      select: { body: true },
+    });
+    const lastBody = (lastOut?.body ?? '').trim();
+    const isRepeatDataRequest =
+      lastBody.includes('Қала') && (lastBody.includes('Байланыс нөміріңіз') || lastBody.includes('байланыс нөмірі'));
+    if (isRepeatDataRequest) {
+      await this.logs.log({
+        tenantId,
+        category: 'ai',
+        message: `AI не повторяет блок вопросов для лида ${lead.id} (уже отправлен)`,
+        meta: { leadId: lead.id },
+      });
+      return { lead: updatedLead, aiHandled: true, reply: undefined };
+    }
+
     let topicName: string | null = null;
     if (updatedLead.topicId) {
       const topic = await this.prisma.tenantTopic.findFirst({
