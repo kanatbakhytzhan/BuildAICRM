@@ -889,7 +889,7 @@ export class AiService {
   }
 
   /** Этап 3: каждые 30 сек обрабатываем лидов с отложенным ответом (1 мин после последнего входящего). */
-  @Cron('*/30 * * * * *')
+  @Cron('*/10 * * * * *') // каждые 10 сек — ответ в течение ~5–15 сек
   async processScheduledReplies(): Promise<void> {
     const now = new Date();
     const leads = await this.prisma.lead.findMany({

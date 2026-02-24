@@ -234,7 +234,7 @@ function parseFromQuery(query: Record<string, unknown>): { text: string; phone: 
   return { text: text.trim(), phone, channelExternalId };
 }
 
-const DELAY_MS = 30 * 1000; // 30 сек после последнего входящего (Этап 3)
+const DELAY_MS = 5 * 1000; // 5 сек — ответ в течение ~5–15 сек (крон каждые 10 сек)
 
 /** По тексту сообщения определяет тему (для ChatFlow: какое голосовое отправить). Возвращает slug: panels | laminate | linoleum | tractor | null. */
 function detectTopicSlug(text: string): string | null {
