@@ -720,23 +720,29 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
-    // Одно сообщение повторять нельзя: не повторять стартовый пакет и не повторять блок вопросов
-    const lastOut = await this.prisma.message.findFirst({
+    // Одно сообщение повторять нельзя: проверяем последние исходящие (после голоса/фото мог снова отправить блок)
+    const recentOut = await this.prisma.message.findMany({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
       orderBy: { createdAt: 'desc' },
+      take: 15,
       select: { body: true },
     });
-    const lastBody = (lastOut?.body ?? '').trim();
-    const isRepeatDataRequest =
-      lastBody.includes('Қала') && (lastBody.includes('Байланыс нөміріңіз') || lastBody.includes('байланыс нөмірі'));
-    const isRepeatWelcome =
-      (lastBody.includes('Сәлеметсіз бе') && lastBody.includes('Біздің мекенжайымыз')) ||
-      (lastBody.includes('Здравствуйте') && lastBody.includes('Ырысты'));
-    if (isRepeatDataRequest || isRepeatWelcome) {
+    const alreadySentDataRequest = recentOut.some((m) => {
+      const b = (m.body ?? '').trim();
+      return b.includes('Қала') && (b.includes('Байланыс нөміріңіз') || b.includes('байланыс нөмірі'));
+    });
+    const alreadySentWelcome = recentOut.some((m) => {
+      const b = (m.body ?? '').trim();
+      return (
+        (b.includes('Сәлеметсіз бе') && b.includes('Біздің мекенжайымыз')) ||
+        (b.includes('Здравствуйте') && b.includes('Ырысты'))
+      );
+    });
+    if (alreadySentDataRequest || alreadySentWelcome) {
       await this.logs.log({
         tenantId,
         category: 'ai',
-        message: `AI не повторяет сообщение для лида ${lead.id} (уже отправлен)`,
+        message: `AI не повторяет сообщение для лида ${lead.id} (уже отправлен в истории)`,
         meta: { leadId: lead.id },
       });
       return { lead: updatedLead, aiHandled: true, reply: undefined };
