@@ -330,6 +330,19 @@ export class AiService {
     return { at: at.toISOString(), note };
   }
 
+  /** Сообщение содержит размеры дома для расчёта панелей (например 10*12*3, «10 12 3 метр размеры»). */
+  private isPanelDimensionsMessage(text: string): boolean {
+    const t = (text ?? '').trim();
+    if (!t) return false;
+    const lower = t.toLowerCase().replace(/\s+/g, ' ');
+    // Три числа через * / - x × или пробелы: 10*12*3, 8-11-3.5, 10 12 3
+    const threeNumbers = /\d+(?:[.,]\d+)?\s*[*×xX\-/]\s*\d+(?:[.,]\d+)?\s*[*×xX\-/]\s*\d+(?:[.,]\d+)?/.test(t) ||
+      (t.match(/\d+(?:[.,]\d+)?/g) ?? []).length >= 3;
+    const dimensionKeywords = /размер|метр|м\s*[²2]|ұзындық|ені|биіктік|длина|ширина|высота|м\s*\d|\d\s*м|размеры/i.test(lower);
+    const twoNumbersWithSep = /\d+(?:[.,]\d+)?\s*[*×xX\-/\s]\s*\d+(?:[.,]\d+)?/.test(t);
+    return (threeNumbers || (twoNumbersWithSep && dimensionKeywords)) || (dimensionKeywords && (t.match(/\d+(?:[.,]\d+)?/g) ?? []).length >= 2);
+  }
+
   /** Системный промпт: определение языка, стартовый пакет (RU/КЗ) в одном потоке с голосом и каталогом; панели — запрос размеров и расчёт; остальное — только сбор данных. */
   private getDefaultSystemPrompt(): string {
     return `Ты обязан определить язык первого сообщения клиента.
@@ -720,7 +733,11 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
-    // Одно сообщение повторять нельзя: проверяем последние исходящие (после голоса/фото мог снова отправить блок)
+    // Одно сообщение повторять нельзя — кроме случаев: клиент прислал размеры дома (расчёт) или запрос каталога по теме.
+    const isCatalogRequest = this.messages.isCatalogRequest(text);
+    const isPanelDimensionsMessage = this.isPanelDimensionsMessage(text);
+    const mustAnswerAnyway = isCatalogRequest || isPanelDimensionsMessage;
+
     const recentOut = await this.prisma.message.findMany({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
       orderBy: { createdAt: 'desc' },
@@ -738,7 +755,7 @@ export class AiService {
         (b.includes('Здравствуйте') && b.includes('Ырысты'))
       );
     });
-    if (alreadySentDataRequest || alreadySentWelcome) {
+    if (!mustAnswerAnyway && (alreadySentDataRequest || alreadySentWelcome)) {
       await this.logs.log({
         tenantId,
         category: 'ai',
@@ -793,13 +810,13 @@ export class AiService {
       }
     }
 
-    // [IGNORE] / [SILENT] от модели — ничего не отправляем
+    // [IGNORE] / [SILENT] / [HUMAN_TAKEOVER] от модели — ничего не отправляем
     const replyTrim = reply?.trim() ?? '';
-    if (/^\[IGNORE\]$/i.test(replyTrim) || /^\[SILENT\]$/i.test(replyTrim)) {
+    if (/^\[IGNORE\]$/i.test(replyTrim) || /^\[SILENT\]$/i.test(replyTrim) || /^\[HUMAN_TAKEOVER\]$/i.test(replyTrim)) {
       await this.logs.log({
         tenantId,
         category: 'ai',
-        message: `AI не отвечает (IGNORE) для лида ${lead.id}`,
+        message: 'AI не отвечает (' + replyTrim.toUpperCase() + ') для лида ' + lead.id,
         meta: { leadId: lead.id, input: text },
       });
       return { lead: updatedLead, aiHandled: true, reply: undefined };
