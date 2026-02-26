@@ -503,6 +503,21 @@ export class WebhooksController {
         });
         const topicId = topicFromLead ?? firstTopic?.id ?? null;
         const hasReply = result.reply != null && result.reply !== '';
+
+        // В режиме приветствия сразу отправляем текст в WhatsApp через ChatFlow (без задержки),
+        // если у клиента настроены токен и instance_id.
+        if (hasReply) {
+          const sent = await this.messages.sendToLead(tenantId, lead.id, result.reply!);
+          await this.logs.log({
+            tenantId,
+            category: 'whatsapp',
+            message: sent
+              ? 'Вебхук приветствия: текстовый ответ отправлен в WhatsApp через send-text'
+              : 'Вебхук приветствия: текстовый ответ НЕ отправлен (sendToLead вернул false)',
+            meta: { leadId: lead.id },
+          });
+        }
+
         if (topicId) {
           const topic = await this.prisma.tenantTopic.findFirst({
             where: { id: topicId, tenantId },
