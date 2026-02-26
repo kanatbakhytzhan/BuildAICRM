@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessageSource, MessageDirection } from '@prisma/client';
+import { SystemLogsService } from '../system/system.logs.service';
+
+export type SendToLeadResult = { sent: boolean; reason?: string };
 
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private systemLogs: SystemLogsService,
+  ) {}
 
   async getLeadIfAccess(tenantId: string, leadId: string) {
     const lead = await this.prisma.lead.findFirst({
@@ -104,37 +110,15 @@ export class MessagesService {
       await this.sendMediaToLead(tenantId, lead.id, data.mediaUrl.trim(), 'audio', '', MessageSource.human);
     }
 
-    // Отправить исходящее текстовое сообщение в WhatsApp
+    // Отправить исходящее текстовое сообщение в WhatsApp (через общий sendToLead с логированием)
     if (
       data.direction === MessageDirection.out &&
       data.source === MessageSource.human &&
       data.body?.trim()
     ) {
-      const settings = await this.prisma.tenantSettings.findUnique({
-        where: { tenantId },
-      });
-      let instanceId: string | null = settings?.chatflowInstanceId ?? null;
-      if (lead.channelId) {
-        const ch = await this.prisma.tenantChannel.findUnique({
-          where: { id: lead.channelId },
-        });
-        if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
-      }
-      if (settings?.chatflowApiToken && instanceId) {
-        const phone = String(lead.phone).replace(/\D/g, '');
-        if (phone.length >= 10) {
-          const jid = `${phone}@s.whatsapp.net`;
-          try {
-            const url = new URL('https://app.chatflow.kz/api/v1/send-text');
-            url.searchParams.set('token', settings.chatflowApiToken);
-            url.searchParams.set('instance_id', instanceId);
-            url.searchParams.set('jid', jid);
-            url.searchParams.set('msg', data.body!.trim());
-            await fetch(url.toString());
-          } catch {
-            // не падаем: сообщение уже сохранено в CRM
-          }
-        }
+      const r = await this.sendToLead(tenantId, lead.id, data.body!.trim());
+      if (!r.sent) {
+        this.logger.warn(`createForLead: WhatsApp send-text не отправлен leadId=${lead.id} reason=${r.reason ?? 'unknown'}`);
       }
     }
 
@@ -142,11 +126,13 @@ export class MessagesService {
   }
 
   /** Отправить исходящее сообщение лиду в WhatsApp (тот же канал/номер, что у лида). Для AI и webhook. */
-  async sendToLead(tenantId: string, leadId: string, body: string): Promise<boolean> {
+  async sendToLead(tenantId: string, leadId: string, body: string): Promise<SendToLeadResult> {
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
     });
-    if (!lead || !body?.trim()) return false;
+    if (!lead || !body?.trim()) {
+      return { sent: false, reason: 'no_lead_or_empty_body' };
+    }
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
     });
@@ -157,22 +143,101 @@ export class MessagesService {
       });
       if (ch && ch.externalId !== 'default') instanceId = ch.externalId;
     }
-    if (!settings?.chatflowApiToken || !instanceId) return false;
-    const phone = String(lead.phone).replace(/\D/g, '');
-    if (phone.length < 10) return false;
-    const jid = `${phone}@s.whatsapp.net`;
-    const url = new URL('https://app.chatflow.kz/api/v1/send-text');
-    url.searchParams.set('token', settings.chatflowApiToken);
-    url.searchParams.set('instance_id', instanceId);
-    url.searchParams.set('jid', jid);
-    url.searchParams.set('msg', body.trim());
-    try {
-      const res = await fetch(url.toString());
-      const data = (await res.json()) as { success?: boolean };
-      return data?.success === true;
-    } catch {
-      return false;
+    if (!settings?.chatflowApiToken?.trim()) {
+      await this.systemLogs.log({
+        tenantId,
+        category: 'whatsapp',
+        message: 'WhatsApp: сообщение не отправлено — в настройках клиента не задан ChatFlow API Token',
+        meta: { leadId },
+      });
+      return { sent: false, reason: 'no_chatflow_token' };
     }
+    if (!instanceId?.trim()) {
+      await this.systemLogs.log({
+        tenantId,
+        category: 'whatsapp',
+        message: 'WhatsApp: сообщение не отправлено — в настройках клиента не задан Instance ID (номер канала)',
+        meta: { leadId },
+      });
+      return { sent: false, reason: 'no_instance_id' };
+    }
+    const phone = String(lead.phone).replace(/\D/g, '');
+    if (phone.length < 10) {
+      return { sent: false, reason: 'invalid_phone' };
+    }
+    const jid = `${phone}@s.whatsapp.net`;
+    const msg = body.trim();
+    const baseUrl = 'https://app.chatflow.kz/api/v1/send-text';
+    const params = {
+      token: settings.chatflowApiToken.trim(),
+      instance_id: instanceId.trim(),
+      jid,
+      msg,
+    };
+
+    const trySend = async (method: 'GET' | 'POST'): Promise<{ sent: boolean; reason?: string }> => {
+      let res: Response;
+      try {
+        if (method === 'GET') {
+          const url = new URL(baseUrl);
+          url.searchParams.set('token', params.token);
+          url.searchParams.set('instance_id', params.instance_id);
+          url.searchParams.set('jid', params.jid);
+          url.searchParams.set('msg', params.msg);
+          res = await fetch(url.toString(), { method: 'GET' });
+        } else {
+          res = await fetch(baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(params).toString(),
+          });
+        }
+      } catch (err) {
+        const msg = (err as Error).message;
+        await this.systemLogs.log({
+          tenantId,
+          category: 'whatsapp',
+          message: `WhatsApp send-text: ошибка сети — ${msg}`,
+          meta: { leadId, method },
+        });
+        return { sent: false, reason: `network_error: ${msg}` };
+      }
+      const raw = await res.text();
+      let data: { success?: boolean; message?: string } = {};
+      try {
+        data = JSON.parse(raw) as { success?: boolean; message?: string };
+      } catch {
+        await this.systemLogs.log({
+          tenantId,
+          category: 'whatsapp',
+          message: `WhatsApp send-text: ответ не JSON (возможно HTML). Проверьте URL и токен ChatFlow.`,
+          meta: { leadId, status: res.status, responsePreview: raw.slice(0, 300) },
+        });
+        return { sent: false, reason: 'invalid_response_not_json' };
+      }
+      if (data?.success === true) {
+        return { sent: true };
+      }
+      const apiMessage = data?.message ?? raw?.slice(0, 200) ?? 'unknown';
+      await this.systemLogs.log({
+        tenantId,
+        category: 'whatsapp',
+        message: `WhatsApp send-text: ChatFlow вернул ошибку — ${apiMessage}`,
+        meta: { leadId, status: res.status, chatflowMessage: data?.message },
+      });
+      return { sent: false, reason: apiMessage };
+    };
+
+    // Длинные сообщения — сразу POST, чтобы не упираться в лимит длины URL
+    const usePost = msg.length > 1200;
+    const result = await trySend(usePost ? 'POST' : 'GET');
+    if (result.sent) return result;
+    // Если GET вернул ошибку (например 414 URI Too Long), пробуем POST
+    if (!usePost) {
+      const retry = await trySend('POST');
+      if (retry.sent) return retry;
+    }
+    return result;
   }
 
   /** Отправить медиа лиду в WhatsApp и сохранить в чат CRM (исходящее сообщение). source: ai по умолчанию; human — не создаём запись (уже создана в createForLead). */
@@ -323,7 +388,7 @@ export class MessagesService {
         if (retryParsed?.success === true) {
           if (source === MessageSource.ai) {
             const body =
-              type === 'audio' ? '🎵 Голосовое сообщение' : type === 'image' ? '🖼 Фото каталога' : '📎 Документ';
+              (type === 'image' ? '🖼 Фото каталога' : '📎 Документ');
             await this.create(leadId, {
               source: MessageSource.ai,
               direction: MessageDirection.out,
@@ -442,7 +507,7 @@ export class MessagesService {
   }
 
   /** Fallback: отправить ссылку на медиа текстом (ChatFlow не имеет send-media). */
-  private sendMediaLinkAsText(
+  private async sendMediaLinkAsText(
     tenantId: string,
     leadId: string,
     mediaUrl: string,
@@ -450,6 +515,7 @@ export class MessagesService {
   ): Promise<boolean> {
     const label = type === 'audio' ? '🎵 Голосовое' : type === 'image' ? '🖼 Фото' : '📎 Документ';
     const body = `${label}: ${mediaUrl}`;
-    return this.sendToLead(tenantId, leadId, body);
+    const r = await this.sendToLead(tenantId, leadId, body);
+    return r.sent;
   }
 }

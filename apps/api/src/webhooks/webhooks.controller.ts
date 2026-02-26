@@ -481,7 +481,7 @@ export class WebhooksController {
         incomingCount,
         queryWelcome: query.welcome,
         bodyWelcome: body.welcome,
-      },
+      } as Prisma.JsonValue,
     });
     if (treatAsWelcome) {
       const settings = await this.prisma.tenantSettings.findUnique({ where: { tenantId } });
@@ -507,14 +507,14 @@ export class WebhooksController {
         // В режиме приветствия сразу отправляем текст в WhatsApp через ChatFlow (без задержки),
         // если у клиента настроены токен и instance_id.
         if (hasReply) {
-          const sent = await this.messages.sendToLead(tenantId, lead.id, result.reply!);
+          const sendResult = await this.messages.sendToLead(tenantId, lead.id, result.reply!);
           await this.logs.log({
             tenantId,
             category: 'whatsapp',
-            message: sent
+            message: sendResult.sent
               ? 'Вебхук приветствия: текстовый ответ отправлен в WhatsApp через send-text'
-              : 'Вебхук приветствия: текстовый ответ НЕ отправлен (sendToLead вернул false)',
-            meta: { leadId: lead.id },
+              : `Вебхук приветствия: текст НЕ отправлен в WhatsApp — ${sendResult.reason ?? 'unknown'}. Проверьте настройки: ChatFlow API Token и Instance ID.`,
+            meta: { leadId: lead.id, reason: sendResult.reason },
           });
         }
 

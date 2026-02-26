@@ -149,13 +149,13 @@ export class FollowupsSchedulerService {
       body: params.messageText,
     });
 
-    const sent = await this.messages.sendToLead(params.tenantId, params.leadId, params.messageText);
-    if (!sent) {
+    const sendResult = await this.messages.sendToLead(params.tenantId, params.leadId, params.messageText);
+    if (!sendResult.sent) {
       await this.logs.log({
         tenantId: params.tenantId,
         category: 'ai',
-        message: `Follow-up не отправлен в WhatsApp для лида ${params.leadId} (ChatFlow)`,
-        meta: { leadId: params.leadId },
+        message: `Follow-up не отправлен в WhatsApp для лида ${params.leadId} — ${sendResult.reason ?? 'ChatFlow'}`,
+        meta: { leadId: params.leadId, reason: sendResult.reason },
       });
     }
 
