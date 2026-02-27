@@ -11,3 +11,5 @@
   Root Directory: apps/api
 
 НЕ добавляй в Build Command: prisma db push или prisma migrate deploy — из-за этого P1001.
+
+(Обновлено для синхронизации.)
