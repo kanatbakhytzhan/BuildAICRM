@@ -1,5 +1,9 @@
 # Render Blueprint — для деплоя API из monorepo
 # Используй этот файл при создании сервиса через Blueprint или скопируй настройки в Dashboard
+#
+# Важно: в Build не должно быть prisma migrate deploy / db push (БД недоступна при сборке → P1001).
+# Миграции выполняются при старте контейнера (см. apps/api/Dockerfile CMD).
+# Подробнее: docs/RENDER-P1001-FIX.md
 services:
   - type: web
     name: buildcrm-api
