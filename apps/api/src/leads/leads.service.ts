@@ -240,38 +240,41 @@ export class LeadsService {
       }
     }
 
-    // График лидов по дням/неделям (новые лиды)
-    const allLeadsInPeriod = await this.prisma.lead.findMany({
-      where: { tenantId, createdAt: { gte: from, lte: to } },
-      select: { createdAt: true },
+    // График лидов по дням/неделям (новые лиды).
+    // Используем агрегированную таблицу LeadDailyStat, чтобы история сохранялась
+    // даже при очистке старых лидов из основной таблицы Lead.
+    const leadStatsInPeriod = await (this.prisma as any).leadDailyStat.findMany({
+      where: { tenantId, date: { gte: from, lte: to } },
+      select: { date: true, leadsCount: true },
     });
+    const statsByDay = new Map<string, number>();
+    for (const s of leadStatsInPeriod) {
+      const key = new Date(s.date).toISOString().slice(0, 10);
+      statsByDay.set(key, (statsByDay.get(key) ?? 0) + s.leadsCount);
+    }
     const leadsByPeriod: { label: string; count: number }[] = [];
     if (period === 'day') {
-      leadsByPeriod.push({ label: from.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }), count: allLeadsInPeriod.length });
+      const key = from.toISOString().slice(0, 10);
+      const count = statsByDay.get(key) ?? 0;
+      leadsByPeriod.push({
+        label: from.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+        count,
+      });
     } else if (period === 'week' || period === 'month') {
-      const byDay = new Map<string, number>();
       for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        byDay.set(d.toISOString().slice(0, 10), 0);
-      }
-      for (const l of allLeadsInPeriod) {
-        const key = new Date(l.createdAt).toISOString().slice(0, 10);
-        byDay.set(key, (byDay.get(key) ?? 0) + 1);
-      }
-      for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        const count = statsByDay.get(key) ?? 0;
         leadsByPeriod.push({
           label: new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
-          count: byDay.get(d.toISOString().slice(0, 10)) ?? 0,
+          count,
         });
       }
     } else {
       const byMonth = new Map<string, number>();
-      for (let m = new Date(from.getFullYear(), from.getMonth(), 1); m <= to; m.setMonth(m.getMonth() + 1)) {
-        byMonth.set(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`, 0);
-      }
-      for (const l of allLeadsInPeriod) {
-        const d = new Date(l.createdAt);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+      for (const [dayKey, count] of statsByDay.entries()) {
+        const [year, month] = dayKey.split('-');
+        const monthKey = `${year}-${month}`;
+        byMonth.set(monthKey, (byMonth.get(monthKey) ?? 0) + count);
       }
       for (let m = new Date(from.getFullYear(), from.getMonth(), 1); m <= to; m.setMonth(m.getMonth() + 1)) {
         leadsByPeriod.push({

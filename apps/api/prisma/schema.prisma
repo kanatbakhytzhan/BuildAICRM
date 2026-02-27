@@ -17,6 +17,7 @@ model Tenant {
   users               User[]
   pipelineStages      PipelineStage[]
   leads               Lead[]
+  leadDailyStats      LeadDailyStat[]
   settings            TenantSettings?
   followUpTemplates   FollowUpTemplate[]
   quickReplyTemplates QuickReplyTemplate[]
@@ -251,6 +252,21 @@ model Lead {
   @@index([tenantId, lastMessageAt])
   @@index([tenantId, phone, channelId])
   @@index([aiReplyScheduledAt])
+}
+
+/// Агрегированная статистика по лидам для аналитики (чтобы графики не зависели от очистки старых лидов).
+model LeadDailyStat {
+  id         String   @id @default(cuid())
+  tenantId   String
+  date       DateTime @db.Date
+  leadsCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
 }
 
 enum MessageSource {

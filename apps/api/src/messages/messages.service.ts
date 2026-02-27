@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MessageSource, MessageDirection } from '@prisma/client';
+import { MessageSource, MessageDirection, Prisma } from '@prisma/client';
 import { SystemLogsService } from '../system/system.logs.service';
 
 export type SendToLeadResult = { sent: boolean; reason?: string };
@@ -410,14 +410,17 @@ export class MessagesService {
     }
   }
 
-  /** Приветственные медиа (голос + фото) — только один раз за диалог. После отправки ставим welcomeMediaSentAt. */
+  /** Приветственные медиа (голос + фото) по теме. По каждой теме отправляем не более одного раза (metadata.welcomeMediaSentTopicIds). */
   async sendWelcomeMediaForTopic(tenantId: string, leadId: string, topicId: string | null): Promise<void> {
     if (!topicId) return;
     const lead = await this.prisma.lead.findFirst({
       where: { id: leadId, tenantId },
-      select: { welcomeMediaSentAt: true },
+      select: { metadata: true, welcomeMediaSentAt: true },
     });
-    if (lead?.welcomeMediaSentAt) return; // уже отправляли — не дублируем
+    if (!lead) return;
+    const meta = (lead.metadata && typeof lead.metadata === 'object' && !Array.isArray(lead.metadata)) ? (lead.metadata as Record<string, unknown>) : {};
+    const sentIds: string[] = Array.isArray(meta.welcomeMediaSentTopicIds) ? (meta.welcomeMediaSentTopicIds as string[]) : [];
+    if (sentIds.includes(topicId)) return;
 
     const topic = await this.prisma.tenantTopic.findFirst({
       where: { id: topicId, tenantId },
@@ -446,9 +449,13 @@ export class MessagesService {
     if (imageItems.length > 0) {
       await Promise.all(imageItems.map(({ url }) => this.sendMediaToLead(tenantId, leadId, url, 'image', '')));
     }
+    const newSentIds = [...sentIds, topicId];
     await this.prisma.lead.update({
       where: { id: leadId },
-      data: { welcomeMediaSentAt: new Date() },
+      data: {
+        welcomeMediaSentAt: new Date(),
+        metadata: { ...meta, welcomeMediaSentTopicIds: newSentIds } as Prisma.InputJsonValue,
+      },
     });
   }
 

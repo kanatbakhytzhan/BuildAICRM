@@ -386,6 +386,16 @@ export class AiService {
 Адрес офиса: г. Алматы, ул. Ырысты 46/3`;
   }
 
+  /** Интерес к другой теме: «хочу узнать про ламинат», «интересует линолеум», «про погрузчик» и т.п. */
+  private isOtherTopicInterest(text: string): boolean {
+    const t = (text ?? '').toLowerCase().replace(/\s+/g, ' ');
+    return (
+      /(хочу|интересует|узнать|расскажите|информация|подробнее).*(ламинат|линолеум|погрузчик|трактор)/.test(t) ||
+      /(ламинат|линолеум|погрузчик|трактор).*(хочу|интересует|узнать|подробнее|цена|стоимость)/.test(t) ||
+      /^(про\s+)?(ламинат|линолеум|погрузчик|трактор)/.test(t)
+    );
+  }
+
   /** Сообщение содержит размеры дома для расчёта панелей (например 10*12*3, «10 12 3 метр размеры»). */
   private isPanelDimensionsMessage(text: string): boolean {
     const t = (text ?? '').trim();
@@ -408,6 +418,9 @@ export class AiService {
 — на казахском → весь стартовый пакет отправляется на казахском
 
 Ты НЕ спрашиваешь язык. Ты НЕ уточняешь язык. Ты автоматически зеркалишь язык клиента.
+
+ЯЗЫК ОТВЕТА = язык последнего сообщения клиента. Если клиент написал на русском (напр. «Город Алматы 10 12 3,5») — ответ с расчётом и весь текст ТОЛЬКО на русском («Предварительный расчёт», «Общая площадь», «Чистая площадь», «Стоимость»). Если на казахском — только на казахском. Никогда не отвечай расчётом на другом языке.
+Опечатки и ошибки в сообщении клиента — понимай по смыслу и отвечай корректно, не копируй ошибки.
 
 После выбора языка:
 ➡️ Используешь ТОЛЬКО этот язык во всех последующих действиях
@@ -468,7 +481,7 @@ export class AiService {
 
 🟦 ПАНЕЛИ (тема размеры/расчёт): Если клиент написал размеры (длина, ширина, высота) — ответь ТОЛЬКО расчётом по данным из «Уже известные данные». Не спрашивай Қала, Не қажет, Қанша м² — НИКОГДА. Если не хватает одного размера — спроси только его одним словом (напр. «Биіктігіңіз?» или «Высота?»), без списков. Парсер: 8-11-3,5; 8/11/3.5; 10м 8м 3м; 10*12*3. Формула: периметр = (длина+ширина)×2, площадь = периметр×высота. Используй готовые числа из блока данных. После расчёта — [IGNORE].
 
-🟨 НЕ ПАНЕЛИ (ламинат, линолеум, погрузчик, другое): Не задавай вопросов. Не пиши Қала, Не қажет, Қанша м². Верни ровно [IGNORE]. Система по запросу каталога сама отправит каталог.
+🟨 ЛАМИНАТ / ЛИНОЛЕУМ / ПОГРУЗЧИК: Если клиент пишет «хочу узнать про ламинат», «интересует линолеум», «про погрузчик» и т.п. — НЕ [IGNORE]. Дай короткое приветствие по теме на языке клиента (рус — «По ламинату/линолеуму у нас большой выбор, приезжайте на Ырысты 46/3»; каз — аналог). Система отправит голос и каталог по этой теме. Не спрашивай Қала, Не қажет, Қанша м².
 
 🚫 ПОСЛЕ ПРИВЕТСТВИЯ И/ИЛИ РАСЧЁТА: ничего не пиши. [IGNORE]. Исключение: явный запрос каталога другой категории — [IGNORE], каталог отправит система.
 
@@ -483,10 +496,11 @@ export class AiService {
 🛑 БАКСТРОЙ — верни [IGNORE] (передача менеджеру).`;
   }
 
-  private formatMetadataForPrompt(metadata: Prisma.JsonValue | null): string {
+  private formatMetadataForPrompt(metadata: Prisma.JsonValue | null, currentUserMessage?: string): string {
     if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return '';
     const m = metadata as Record<string, unknown>;
     const parts: string[] = [];
+    const isRussian = currentUserMessage != null && currentUserMessage.trim() !== '' && !/[әғқңүұһөі]/.test(currentUserMessage);
     if (m.city != null) parts.push(`Город: ${String(m.city)}`);
     if (m.dimensions != null && typeof m.dimensions === 'object' && !Array.isArray(m.dimensions)) {
       const d = m.dimensions as { length?: number; width?: number; height?: number };
@@ -495,7 +509,6 @@ export class AiService {
       if (d.width != null) dimParts.push(`ширина ${d.width}`);
       if (d.height != null) dimParts.push(`высота ${d.height}`);
       if (dimParts.length) parts.push(`Размеры: ${dimParts.join(', ')}`);
-      // Строго: периметр = (длина+ширина)×2, площадь стен = периметр×высота, минус окна/двери, стоимость по 3500/4000
       if (d.length != null && d.width != null && d.height != null) {
         const perimeter = (d.length + d.width) * 2;
         const wallArea = perimeter * d.height;
@@ -505,17 +518,32 @@ export class AiService {
         const cleanArea = Math.max(0, Math.round((wallArea - subtractArea) * 100) / 100);
         const materialCost = Math.round(cleanArea * 3500);
         const montageCost = Math.round(cleanArea * 4000);
-        parts.push(
-          `Периметр = (${d.length}+${d.width})×2 = ${perimeter} м. Жалпы ауданы (площадь стен) = ${perimeter}×${d.height} = ${wallArea} м².`,
-        );
-        if (windowsCount > 0 || doorsCount > 0) {
+        if (isRussian) {
           parts.push(
-            `Терезелер мен есіктерді алғандағы таза аудан: ${wallArea} − ${subtractArea} = ${cleanArea} м². Болжамды құны: материал ${cleanArea}×3500 = ${materialCost} тг, монтаж ${cleanArea}×4000 = ${montageCost} тг. Используй эти числа в ответе.`,
+            `Периметр = (${d.length}+${d.width})×2 = ${perimeter} м. Общая площадь стен = ${wallArea} м².`,
           );
+          if (windowsCount > 0 || doorsCount > 0) {
+            parts.push(
+              `Чистая площадь (минус окна/двери): ${cleanArea} м². Предварительная стоимость: материал ${materialCost} тг, монтаж ${montageCost} тг. Выведи эти числа в ответе на русском.`,
+            );
+          } else {
+            parts.push(
+              `Предварительная стоимость: материал ${materialCost} тг, монтаж ${montageCost} тг. Выведи в ответе на русском.`,
+            );
+          }
         } else {
           parts.push(
-            `Болжамды құны: материал ${wallArea}×3500 = ${materialCost} тг, монтаж ${wallArea}×4000 = ${montageCost} тг. Используй эти числа в ответе.`,
+            `Периметр = (${d.length}+${d.width})×2 = ${perimeter} м. Жалпы ауданы = ${perimeter}×${d.height} = ${wallArea} м².`,
           );
+          if (windowsCount > 0 || doorsCount > 0) {
+            parts.push(
+              `Терезелер мен есіктерді алғандағы таза аудан: ${cleanArea} м². Болжамды құны: материал ${materialCost} тг, монтаж ${montageCost} тг. Осы сандарды жауапта пайдалан.`,
+            );
+          } else {
+            parts.push(
+              `Болжамды құны: материал ${materialCost} тг, монтаж ${montageCost} тг. Осы сандарды жауапта пайдалан.`,
+            );
+          }
         }
       }
     }
@@ -544,7 +572,7 @@ export class AiService {
       orderBy: { createdAt: 'asc' },
       take: 30,
     });
-    const contextBlock = this.formatMetadataForPrompt(params.leadMetadata ?? null);
+    const contextBlock = this.formatMetadataForPrompt(params.leadMetadata ?? null, params.currentUserMessage ?? undefined);
     let systemContent = (params.systemPrompt?.trim() || this.getDefaultSystemPrompt()) + contextBlock;
     if (params.topicScenario?.trim()) {
       systemContent += `\n\nСценарий по текущей теме${params.topicName ? ` (${params.topicName})` : ''} — придерживайся его в ответах:\n${params.topicScenario.trim()}`;
@@ -802,10 +830,11 @@ export class AiService {
       return { lead: updatedLead, aiHandled: false, reply: undefined };
     }
 
-    // Одно сообщение повторять нельзя — кроме случаев: клиент прислал размеры дома (расчёт) или запрос каталога по теме.
+    // Одно сообщение повторять нельзя — кроме: размеры (расчёт), запрос каталога, интерес к другой теме (ламинат/линолеум/погрузчик).
     const isCatalogRequest = this.messages.isCatalogRequest(text);
     const isPanelDimensionsMessage = this.isPanelDimensionsMessage(text);
-    const mustAnswerAnyway = isCatalogRequest || isPanelDimensionsMessage;
+    const isOtherTopic = this.isOtherTopicInterest(text);
+    const mustAnswerAnyway = isCatalogRequest || isPanelDimensionsMessage || isOtherTopic;
 
     const recentOut = await this.prisma.message.findMany({
       where: { leadId: lead.id, source: MessageSource.ai, direction: MessageDirection.out },
