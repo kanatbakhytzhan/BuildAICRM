@@ -1,5 +1,7 @@
 # Ошибка P1001 при деплое на Render
 
+**Если в логах видишь** `Running build command '... prisma db push'` **— в Dashboard задана лишняя команда.** Замени Build Command на команду **без** `prisma db push` (см. ниже и файл `RENDER-BUILD-COMMAND.txt`).
+
 **Симптом:** в логах сборки (Build) появляется:
 ```
 Error: P1001: Can't reach database server at `dpg-xxx:5432`
