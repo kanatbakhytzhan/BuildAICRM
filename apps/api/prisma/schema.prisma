@@ -17,7 +17,6 @@ model Tenant {
   users               User[]
   pipelineStages      PipelineStage[]
   leads               Lead[]
-  leadDailyStats      LeadDailyStat[]
   settings            TenantSettings?
   followUpTemplates   FollowUpTemplate[]
   quickReplyTemplates QuickReplyTemplate[]
@@ -254,21 +253,6 @@ model Lead {
   @@index([aiReplyScheduledAt])
 }
 
-/// Агрегированная статистика по лидам для аналитики (чтобы графики не зависели от очистки старых лидов).
-model LeadDailyStat {
-  id         String   @id @default(cuid())
-  tenantId   String
-  date       DateTime @db.Date
-  leadsCount Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, date])
-  @@index([tenantId, date])
-}
-
 enum MessageSource {
   ai
   human
@@ -320,4 +304,18 @@ model SystemSettings {
   aiGlobalEnabled Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Агрегированная статистика по лидам (для аналитики после удаления старых лидов)
+model LeadStats {
+  id        String   @id @default(cuid())
+  tenantId  String
+  topicId   String   @default("")
+  date      DateTime @db.Date
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, topicId, date])
+  @@index([tenantId])
+  @@index([date])
 }

@@ -8,6 +8,7 @@ import { TranscribeService } from './transcribe.service';
 import { AiService } from '../ai/ai.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { UploadService } from '../upload/upload.service';
+import { LeadCleanupService } from '../leads/lead-cleanup.service';
 
 /** Нормализует номер телефона до цифр (для поиска лида). */
 function normalizePhone(v: unknown): string {
@@ -262,6 +263,7 @@ export class WebhooksController {
     private ai: AiService,
     private shifts: ShiftsService,
     private upload: UploadService,
+    private leadCleanup: LeadCleanupService,
   ) {}
 
   /** Вход по ключу: POST /webhooks/chatflow?key=WEBHOOK_KEY (tenant определяется по TenantSettings.webhookKey). */
@@ -386,6 +388,7 @@ export class WebhooksController {
           assignedUserId: assignedUserId ?? undefined,
         },
       });
+      await this.leadCleanup.recordNewLead(tenantId, lead.topicId);
     } else if (senderName && !lead.name) {
       await this.prisma.lead.update({ where: { id: lead.id }, data: { name: senderName } });
     }
@@ -670,6 +673,7 @@ export class WebhooksController {
       lead = await this.prisma.lead.create({
         data: { tenantId, stageId: firstStage.id, phone, name: null, channelId: resolvedChannelId },
       });
+      await this.leadCleanup.recordNewLead(tenantId, lead.topicId);
     }
 
     await this.messages.createForLead(tenantId, lead.id, {
