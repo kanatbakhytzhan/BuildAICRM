@@ -1,6 +1,12 @@
 node_modules
 .next
+.env
+.env.local
 .git
+.gitignore
 *.md
-.env*
-!.env.example
+.dockerignore
+Dockerfile
+fly.toml
+*.log
+.DS_Store

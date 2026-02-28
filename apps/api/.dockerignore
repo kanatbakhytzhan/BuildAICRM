@@ -1,7 +1,13 @@
 node_modules
 dist
 .env
-.env.*
-*.md
+.env.local
 .git
 .gitignore
+*.md
+.dockerignore
+Dockerfile
+fly.toml
+uploads
+*.log
+.DS_Store

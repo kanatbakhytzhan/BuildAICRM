@@ -11,7 +11,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
@@ -19,5 +19,5 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.js ./
 RUN npm ci --omit=dev
 
-EXPOSE 3000
-CMD ["npx", "next", "start"]
+EXPOSE 8080
+CMD ["npx", "next", "start", "-p", "8080"]
