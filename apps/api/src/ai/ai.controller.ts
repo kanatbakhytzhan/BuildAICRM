@@ -53,5 +53,30 @@ export class AiController {
       leadId,
     });
   }
+
+  /**
+   * Поставить AI на паузу (без назначения менеджера).
+   * Сообщения приходят в CRM, но AI не отвечает.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('leads/:leadId/ai/pause')
+  pauseAi(@CurrentUser() user: RequestUser, @Param('leadId') leadId: string) {
+    return this.ai.pauseAiForLead({
+      tenantId: user.tenantId,
+      leadId,
+    });
+  }
+
+  /**
+   * Снять паузу AI (включить AI обратно).
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('leads/:leadId/ai/resume')
+  resumeAi(@CurrentUser() user: RequestUser, @Param('leadId') leadId: string) {
+    return this.ai.resumeAiForLead({
+      tenantId: user.tenantId,
+      leadId,
+    });
+  }
 }
 

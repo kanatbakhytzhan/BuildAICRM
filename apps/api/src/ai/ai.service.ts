@@ -1022,6 +1022,74 @@ export class AiService {
     return updated;
   }
 
+  /**
+   * Поставить AI на паузу для лида (без назначения менеджера).
+   * Сообщения приходят в CRM, но AI не отвечает.
+   */
+  async pauseAiForLead(params: { tenantId: string; leadId: string }) {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: params.leadId, tenantId: params.tenantId },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+
+    const updated = await this.prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        aiActive: false,
+        aiReplyScheduledAt: null,
+      },
+      include: {
+        stage: { select: { id: true, name: true, type: true } },
+        assignedUser: { select: { id: true, name: true, email: true } },
+        channel: true,
+        topic: true,
+      },
+    });
+
+    this.followups.cancelLeadFollowUps(lead.id);
+
+    await this.logs.log({
+      tenantId: params.tenantId,
+      category: 'ai',
+      message: `AI поставлен на паузу для лида ${lead.id}`,
+      meta: { leadId: lead.id },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Снять паузу AI для лида (включить AI обратно).
+   */
+  async resumeAiForLead(params: { tenantId: string; leadId: string }) {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: params.leadId, tenantId: params.tenantId },
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+
+    const updated = await this.prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        aiActive: true,
+      },
+      include: {
+        stage: { select: { id: true, name: true, type: true } },
+        assignedUser: { select: { id: true, name: true, email: true } },
+        channel: true,
+        topic: true,
+      },
+    });
+
+    await this.logs.log({
+      tenantId: params.tenantId,
+      category: 'ai',
+      message: `AI снят с паузы для лида ${lead.id}`,
+      meta: { leadId: lead.id },
+    });
+
+    return updated;
+  }
+
   /** Этап 3: каждые 30 сек обрабатываем лидов с отложенным ответом (1 мин после последнего входящего). */
   @Cron('*/10 * * * * *') // каждые 10 сек — ответ в течение ~5–15 сек
   async processScheduledReplies(): Promise<void> {

@@ -190,4 +190,8 @@ export const ai = {
     api<Lead>(`/ai/leads/${leadId}/handoff/take`, { method: 'POST' }),
   release: (leadId: string) =>
     api<Lead>(`/ai/leads/${leadId}/handoff/release`, { method: 'POST' }),
+  pause: (leadId: string) =>
+    api<Lead>(`/ai/leads/${leadId}/ai/pause`, { method: 'POST' }),
+  resume: (leadId: string) =>
+    api<Lead>(`/ai/leads/${leadId}/ai/resume`, { method: 'POST' }),
 };

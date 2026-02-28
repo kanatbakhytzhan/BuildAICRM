@@ -197,6 +197,24 @@ export default function LeadDetailPage() {
     }
   };
 
+  const [pauseLoading, setPauseLoading] = useState(false);
+  const handlePauseAi = async () => {
+    if (!lead) return;
+    setHandoffError(null);
+    setPauseLoading(true);
+    try {
+      const updated = lead.aiActive
+        ? await ai.pause(lead.id)
+        : await ai.resume(lead.id);
+      setLead(updated as LeadWithMeta);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка при паузе AI';
+      setHandoffError(message);
+    } finally {
+      setPauseLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!lead || !window.confirm('Удалить этого лида? Это действие нельзя отменить.')) return;
     setDeleting(true);
@@ -549,12 +567,24 @@ export default function LeadDetailPage() {
             </div>
             <button
               type="button"
-              onClick={handleHandoff}
-              disabled={handoffLoading}
-              style={{ padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid var(--border)', background: lead.aiActive ? 'var(--danger-bg)' : 'var(--accent-light)', color: lead.aiActive ? 'var(--danger)' : 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: handoffLoading ? 'wait' : 'pointer' }}
+              onClick={handlePauseAi}
+              disabled={pauseLoading}
+              style={{ padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid var(--border)', background: lead.aiActive ? 'var(--warning-bg)' : 'var(--success-bg, #e6f7e6)', color: lead.aiActive ? 'var(--warning)' : 'var(--success)', fontSize: 12, fontWeight: 600, cursor: pauseLoading ? 'wait' : 'pointer' }}
+              title={lead.aiActive ? 'AI перестанет отвечать, но сообщения будут приходить' : 'Включить AI обратно'}
             >
-              {handoffLoading ? '…' : lead.aiActive ? 'Забрать диалог' : 'Вернуть AI'}
+              {pauseLoading ? '…' : lead.aiActive ? '⏸ Пауза AI' : '▶ Включить AI'}
             </button>
+            {lead.aiActive && (
+              <button
+                type="button"
+                onClick={handleHandoff}
+                disabled={handoffLoading}
+                style={{ padding: '0.4rem 0.75rem', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 12, fontWeight: 600, cursor: handoffLoading ? 'wait' : 'pointer' }}
+                title="Забрать диалог и назначить себя ответственным"
+              >
+                {handoffLoading ? '…' : '👤 Забрать себе'}
+              </button>
+            )}
             {lead.noResponseSince && (
               <span style={{ fontSize: 12, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}><IconClock width={14} height={14} style={{ flexShrink: 0 }} /> {formatSilence(lead.noResponseSince)}</span>
             )}
