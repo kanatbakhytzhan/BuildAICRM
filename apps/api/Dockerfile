@@ -26,4 +26,4 @@ COPY --from=builder /app/dist ./dist
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "if [ -f /app/uploads/.schema-done ]; then exec node dist/main.js; fi; for i in 1 2 3 4 5; do npx prisma db push && touch /app/uploads/.schema-done && exec node dist/main.js; sleep 5; done; echo 'db push failed'; exit 1"]
+CMD ["sh", "-c", "if [ -f /app/uploads/.schema-done ]; then exec node dist/src/main.js; fi; for i in 1 2 3 4 5; do npx prisma db push && touch /app/uploads/.schema-done && exec node dist/src/main.js; sleep 5; done; echo 'db push failed'; exit 1"]
