@@ -21,9 +21,7 @@ COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/scripts/fly-start.sh ./scripts/fly-start.sh
-RUN chmod +x ./scripts/fly-start.sh
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "/app/scripts/fly-start.sh"]
+CMD ["sh", "-c", "if [ -f /app/uploads/.schema-done ]; then exec node dist/main.js; fi; for i in 1 2 3 4 5; do npx prisma db push && touch /app/uploads/.schema-done && exec node dist/main.js; sleep 5; done; echo 'db push failed'; exit 1"]
