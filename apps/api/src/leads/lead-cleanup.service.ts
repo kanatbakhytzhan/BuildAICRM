@@ -11,8 +11,12 @@ export class LeadCleanupService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     this.logger.log('Запуск очистки старых лидов при старте API...');
-    await this.cleanupAllTenants();
-    this.logger.log('Очистка завершена.');
+    try {
+      await this.cleanupAllTenants();
+      this.logger.log('Очистка завершена.');
+    } catch (err) {
+      this.logger.warn('Очистка при старте пропущена: ' + (err as Error).message);
+    }
   }
 
   async cleanupAllTenants() {
