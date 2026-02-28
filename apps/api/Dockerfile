@@ -24,4 +24,4 @@ COPY --from=builder /app/dist ./dist
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]
