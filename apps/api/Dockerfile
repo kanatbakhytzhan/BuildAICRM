@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -7,10 +7,9 @@ COPY prisma ./prisma/
 RUN npm ci --include=dev
 
 COPY . .
-# Только generate + сборка, без подключения к БД (избегаем P1001 на Render).
 RUN npx prisma generate && npx nest build
 
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
@@ -22,5 +21,4 @@ COPY --from=builder /app/dist ./dist
 
 ENV PORT=8080
 EXPOSE 8080
-# Миграции при старте (БД доступна только в runtime, не при build).
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
