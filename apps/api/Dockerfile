@@ -21,7 +21,9 @@ COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY scripts/fly-start.sh ./scripts/fly-start.sh
+RUN chmod +x ./scripts/fly-start.sh
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]
+CMD ["./scripts/fly-start.sh"]
