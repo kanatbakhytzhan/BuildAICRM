@@ -23,6 +23,7 @@ RUN npm ci --omit=dev
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
+COPY scripts/create-admin.js ./scripts/create-admin.js
 
 ENV PORT=8080
 EXPOSE 8080
